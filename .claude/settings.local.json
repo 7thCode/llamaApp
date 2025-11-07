@@ -17,7 +17,8 @@
       "Bash(lsof:*)",
       "mcp__context7__resolve-library-id",
       "mcp__context7__get-library-docs",
-      "Bash(npm view:*)"
+      "Bash(npm view:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []

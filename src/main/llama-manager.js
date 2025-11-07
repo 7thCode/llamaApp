@@ -85,20 +85,29 @@ class LlamaManager {
    */
   async unloadModel() {
     try {
+      console.log('Unloading model...');
+
+      // セッションをクリア
       if (this.session) {
         this.session = null;
       }
+
+      // モデルをdisposeすると、関連するcontextも自動的にdisposeされる
+      if (this.model) {
+        await this.model.dispose();
+        this.model = null;
+        console.log('Model disposed');
+      }
+
+      // 念のためcontextもクリア
       if (this.context) {
-        this.context.dispose();
         this.context = null;
       }
-      if (this.model) {
-        this.model.dispose();
-        this.model = null;
-      }
+
       this.currentModelPath = null;
     } catch (error) {
       console.error('Failed to unload model:', error);
+      throw error;
     }
   }
 

@@ -47,9 +47,9 @@ function setupEventListeners() {
   // 送信ボタン
   sendBtn.addEventListener('click', handleSend);
 
-  // Enterキーで送信（Shift+Enterで改行）
+  // Cmd+Enter (macOS) / Ctrl+Enter (Windows) で送信、Enterは改行
   chatInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       handleSend();
     }

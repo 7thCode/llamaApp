@@ -38,6 +38,25 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
   }
 
+  mainWindow.on('close', async (event) => {
+    // macOS以外ではウィンドウ閉じる=アプリ終了なので、クリーンアップを待つ
+    if (process.platform !== 'darwin' && !isQuitting) {
+      event.preventDefault();
+      isQuitting = true;
+
+      try {
+        if (llamaManager) {
+          await llamaManager.unloadModel();
+        }
+      } catch (error) {
+        console.error('Error during window close cleanup:', error);
+      } finally {
+        mainWindow.destroy();
+        app.quit();
+      }
+    }
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -189,8 +208,25 @@ app.on('activate', () => {
 });
 
 // アプリ終了時のクリーンアップ
-app.on('will-quit', async () => {
-  if (llamaManager) {
-    await llamaManager.unloadModel();
+let isQuitting = false;
+
+app.on('before-quit', async (event) => {
+  if (!isQuitting) {
+    event.preventDefault();
+    isQuitting = true;
+
+    console.log('Cleaning up before quit...');
+
+    try {
+      if (llamaManager) {
+        await llamaManager.unloadModel();
+        console.log('Model unloaded successfully');
+      }
+    } catch (error) {
+      console.error('Error during cleanup:', error);
+    } finally {
+      // クリーンアップ完了後に終了
+      app.quit();
+    }
   }
 });
