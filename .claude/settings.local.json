@@ -9,7 +9,15 @@
       "WebSearch",
       "WebFetch(domain:withcatai.github.io)",
       "WebFetch(domain:node-llama-cpp.withcat.ai)",
-      "Bash(npm run package:mac:*)"
+      "Bash(npm run package:mac:*)",
+      "Bash(pip3 show:*)",
+      "Bash(cd:*)",
+      "Bash(huggingface-cli download:*)",
+      "Bash(find:*)",
+      "Bash(lsof:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "Bash(npm view:*)"
     ],
     "deny": [],
     "ask": []

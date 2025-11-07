@@ -10,6 +10,7 @@ let llamaModule = null;
 
 class LlamaManager {
   constructor() {
+    this.llama = null;
     this.model = null;
     this.context = null;
     this.session = null;
@@ -27,6 +28,8 @@ class LlamaManager {
     try {
       // 動的インポートでES Moduleを読み込む
       llamaModule = await import('node-llama-cpp');
+      // getLlama()でLlamaインスタンスを取得
+      this.llama = await llamaModule.getLlama();
       this.initialized = true;
     } catch (error) {
       console.error('Failed to initialize LlamaManager:', error);
@@ -50,20 +53,19 @@ class LlamaManager {
         await this.unloadModel();
       }
 
-      // モデルをロード
-      this.model = new llamaModule.LlamaModel({
+      // モデルをロード (新API)
+      this.model = await this.llama.loadModel({
         modelPath: modelPath,
       });
 
-      // コンテキスト作成
-      this.context = new llamaModule.LlamaContext({
-        model: this.model,
+      // コンテキスト作成 (新API)
+      this.context = await this.model.createContext({
         contextSize: 4096,
       });
 
-      // セッション作成
+      // セッション作成 (新API: contextSequence使用)
       this.session = new llamaModule.LlamaChatSession({
-        context: this.context,
+        contextSequence: this.context.getSequence(),
       });
 
       this.currentModelPath = modelPath;
@@ -120,6 +122,7 @@ class LlamaManager {
       let totalTokens = 0;
       let fullResponse = '';
 
+      // 新API: onTextChunkコールバック使用
       const response = await this.session.prompt(prompt, {
         temperature: options.temperature || 0.7,
         maxTokens: options.maxTokens || 2048,
@@ -133,14 +136,8 @@ class LlamaManager {
         },
       });
 
-      // onTextChunkが呼ばれなかった場合、responseを使用
+      // レスポンスの確定
       const finalResponse = fullResponse || response || '';
-
-      // ストリーミングが機能しなかった場合、responseを一度に送信
-      if (!fullResponse && response && onToken) {
-        onToken(response);
-        totalTokens = response.split(/\s+/).length;
-      }
 
       this.isGenerating = false;
       return {
