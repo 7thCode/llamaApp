@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__serena__list_dir",
+      "Bash(mkdir:*)",
+      "Bash(tree:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run rebuild:*)",
+      "WebSearch",
+      "WebFetch(domain:withcatai.github.io)",
+      "WebFetch(domain:node-llama-cpp.withcat.ai)",
+      "Bash(npm run package:mac:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

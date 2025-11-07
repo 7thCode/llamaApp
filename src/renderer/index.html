@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>LlamaApp - Local LLM Chat</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="stylesheet" href="styles/chat.css">
+</head>
+<body>
+  <div id="app">
+    <!-- ヘッダー -->
+    <header class="app-header">
+      <div class="header-left">
+        <h1>🦙 LlamaApp</h1>
+      </div>
+      <div class="header-center">
+        <div class="model-selector">
+          <label for="model-select">モデル:</label>
+          <select id="model-select" disabled>
+            <option value="">モデルを読み込み中...</option>
+          </select>
+          <button id="add-model-btn" title="モデルを追加">+</button>
+        </div>
+      </div>
+      <div class="header-right">
+        <button id="settings-btn" title="設定">⚙️</button>
+      </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="app-main">
+      <!-- チャットエリア -->
+      <div class="chat-container">
+        <div id="chat-messages" class="chat-messages">
+          <div class="welcome-message">
+            <h2>LlamaAppへようこそ</h2>
+            <p>ローカルLLMチャットアプリケーションです</p>
+            <div class="instructions">
+              <h3>使い方:</h3>
+              <ol>
+                <li>上部のドロップダウンからモデルを選択</li>
+                <li>メッセージを入力して送信</li>
+                <li>AIの応答を待つ</li>
+              </ol>
+              <p class="note">
+                モデルがない場合は、<strong>+ ボタン</strong>からGGUFファイルを追加してください。
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 入力エリア -->
+        <div class="chat-input-container">
+          <div class="chat-input-wrapper">
+            <textarea
+              id="chat-input"
+              class="chat-input"
+              placeholder="メッセージを入力..."
+              rows="1"
+              disabled
+            ></textarea>
+            <button id="send-btn" class="send-btn" disabled>
+              <span>送信</span>
+            </button>
+          </div>
+          <div class="input-status" id="input-status"></div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ローディングオーバーレイ -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+      <div class="loading-spinner"></div>
+      <p id="loading-text">処理中...</p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
