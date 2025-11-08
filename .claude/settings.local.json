@@ -29,7 +29,8 @@
       "Bash(open:*)",
       "Bash(npm start)",
       "Bash(npm run dev:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(npm run package:dmg:*)"
     ],
     "deny": [],
     "ask": []

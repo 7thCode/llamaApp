@@ -11,9 +11,11 @@
     "prebuild": "npm run rebuild",
     "build": "electron-builder",
     "build:mac": "electron-builder --mac",
+    "build:dmg": "electron-builder --mac dmg",
     "build:dir": "electron-builder --dir",
     "package": "npm run clean && npm run rebuild && npm run build",
     "package:mac": "npm run clean && npm run rebuild && npm run build:mac",
+    "package:dmg": "npm run clean && npm run rebuild && npm run build:dmg",
     "package:dir": "npm run clean && npm run rebuild && npm run build:dir",
     "test": "jest",
     "lint": "eslint src/**/*.js",
@@ -61,6 +63,13 @@
       "category": "public.app-category.utilities",
       "target": [
         {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
           "target": "zip",
           "arch": [
             "x64",
@@ -80,19 +89,25 @@
       "sign": false,
       "background": null,
       "format": "ULFO",
+      "window": {
+        "width": 540,
+        "height": 380
+      },
+      "iconSize": 100,
       "contents": [
         {
           "x": 130,
-          "y": 220
+          "y": 180,
+          "type": "file"
         },
         {
           "x": 410,
-          "y": 220,
+          "y": 180,
           "type": "link",
           "path": "/Applications"
         }
       ],
-      "title": "LlamaApp ${version}"
+      "title": "LlamaApp ${version} Installer"
     }
   }
 }
