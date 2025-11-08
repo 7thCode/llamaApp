@@ -20,6 +20,15 @@ const IPC_CHANNELS = {
   MODEL_ADD: 'model:add',
   MODEL_DELETE: 'model:delete',
 
+  // モデルダウンロード
+  DOWNLOAD_START: 'download:start',
+  DOWNLOAD_CANCEL: 'download:cancel',
+  DOWNLOAD_LIST: 'download:list',
+  DOWNLOAD_PRESET_MODELS: 'download:preset-models',
+  DOWNLOAD_PROGRESS: 'download:progress',
+  DOWNLOAD_COMPLETE: 'download:complete',
+  DOWNLOAD_ERROR: 'download:error',
+
   // 会話管理
   CONVERSATION_LIST: 'conversation:list',
   CONVERSATION_LOAD: 'conversation:load',
@@ -58,6 +67,28 @@ contextBridge.exposeInMainWorld('llamaAPI', {
 
   deleteModel: (modelId) =>
     ipcRenderer.invoke(IPC_CHANNELS.MODEL_DELETE, { modelId }),
+
+  // モデルダウンロード
+  getPresetModels: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.DOWNLOAD_PRESET_MODELS),
+
+  startDownload: (modelId) =>
+    ipcRenderer.invoke(IPC_CHANNELS.DOWNLOAD_START, { modelId }),
+
+  cancelDownload: (downloadId) =>
+    ipcRenderer.invoke(IPC_CHANNELS.DOWNLOAD_CANCEL, { downloadId }),
+
+  listDownloads: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.DOWNLOAD_LIST),
+
+  onDownloadProgress: (callback) =>
+    ipcRenderer.on(IPC_CHANNELS.DOWNLOAD_PROGRESS, (event, data) => callback(data)),
+
+  onDownloadComplete: (callback) =>
+    ipcRenderer.on(IPC_CHANNELS.DOWNLOAD_COMPLETE, (event, data) => callback(data)),
+
+  onDownloadError: (callback) =>
+    ipcRenderer.on(IPC_CHANNELS.DOWNLOAD_ERROR, (event, data) => callback(data)),
 
   // 会話管理（将来の実装用）
   listConversations: () =>

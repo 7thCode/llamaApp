@@ -5,6 +5,7 @@
 // UI要素の取得
 const modelSelect = document.getElementById('model-select');
 const addModelBtn = document.getElementById('add-model-btn');
+const modelStoreBtn = document.getElementById('model-store-btn');
 const settingsBtn = document.getElementById('settings-btn');
 const chatMessages = document.getElementById('chat-messages');
 const chatInput = document.getElementById('chat-input');
@@ -28,6 +29,9 @@ async function initialize() {
   // イベントリスナー設定
   setupEventListeners();
 
+  // モデルストア初期化
+  await modelStore.initialize();
+
   // モデル一覧をロード
   await loadModels();
 
@@ -43,6 +47,9 @@ function setupEventListeners() {
 
   // モデル追加
   addModelBtn.addEventListener('click', handleAddModel);
+
+  // モデルストア
+  modelStoreBtn.addEventListener('click', handleModelStore);
 
   // 送信ボタン
   sendBtn.addEventListener('click', handleSend);
@@ -149,6 +156,13 @@ async function handleModelChange() {
     modelSelect.disabled = false;
     setStatus('モデルの読み込みに失敗しました: ' + error.message, 'error');
   }
+}
+
+/**
+ * モデルストアを開く
+ */
+function handleModelStore() {
+  modelStore.show();
 }
 
 /**

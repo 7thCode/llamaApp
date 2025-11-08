@@ -18,7 +18,18 @@
       "mcp__context7__resolve-library-id",
       "mcp__context7__get-library-docs",
       "Bash(npm view:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(hdiutil info:*)",
+      "Bash(npm run clean:*)",
+      "Bash(npm run package:dir:*)",
+      "Bash(npm run build:mac:*)",
+      "Bash(hdiutil verify:*)",
+      "Bash(unzip:*)",
+      "Bash(xattr -cr:*)",
+      "Bash(open:*)",
+      "Bash(npm start)",
+      "Bash(npm run dev:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

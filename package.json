@@ -61,7 +61,7 @@
       "category": "public.app-category.utilities",
       "target": [
         {
-          "target": "dmg",
+          "target": "zip",
           "arch": [
             "x64",
             "arm64"
@@ -76,6 +76,10 @@
       "icon": "build/icon.png"
     },
     "dmg": {
+      "writeUpdateInfo": false,
+      "sign": false,
+      "background": null,
+      "format": "ULFO",
       "contents": [
         {
           "x": 130,

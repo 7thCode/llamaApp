@@ -1,0 +1,359 @@
+/**
+ * モデルストアスタイル
+ */
+
+.model-store-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.model-store-modal.visible {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.model-store-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+}
+
+.model-store-container {
+  position: relative;
+  width: 90%;
+  max-width: 1000px;
+  max-height: 85vh;
+  background: var(--bg-secondary, #2d2d2d);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.model-store-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color, #444);
+  background: var(--bg-primary, #1e1e1e);
+}
+
+.model-store-header h2 {
+  margin: 0;
+  font-size: 24px;
+  color: var(--text-primary, #e0e0e0);
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  font-size: 32px;
+  color: var(--text-secondary, #999);
+  cursor: pointer;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary, #e0e0e0);
+}
+
+.model-store-filters {
+  display: flex;
+  gap: 12px;
+  padding: 16px 24px;
+  background: var(--bg-primary, #1e1e1e);
+  border-bottom: 1px solid var(--border-color, #444);
+}
+
+.model-store-filters select {
+  padding: 8px 12px;
+  background: var(--bg-secondary, #2d2d2d);
+  color: var(--text-primary, #e0e0e0);
+  border: 1px solid var(--border-color, #444);
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.model-store-filters select:hover {
+  border-color: var(--accent-color, #007aff);
+}
+
+.model-store-filters select:focus {
+  outline: none;
+  border-color: var(--accent-color, #007aff);
+}
+
+.model-store-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.model-card {
+  background: var(--bg-primary, #1e1e1e);
+  border: 1px solid var(--border-color, #444);
+  border-radius: 10px;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  transition: all 0.2s;
+}
+
+.model-card:hover {
+  border-color: var(--accent-color, #007aff);
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.1);
+}
+
+.model-info {
+  flex: 1;
+}
+
+.model-info h3 {
+  margin: 0 0 4px 0;
+  font-size: 18px;
+  color: var(--text-primary, #e0e0e0);
+}
+
+.model-author {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  color: var(--text-secondary, #999);
+}
+
+.model-description {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: var(--text-secondary, #ccc);
+  line-height: 1.5;
+}
+
+.model-specs {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.spec {
+  font-size: 13px;
+  color: var(--text-secondary, #999);
+}
+
+.model-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.tag {
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  font-size: 12px;
+  color: var(--text-secondary, #aaa);
+}
+
+.model-license {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge.commercial {
+  background: rgba(52, 199, 89, 0.15);
+  color: #34c759;
+}
+
+.badge.non-commercial {
+  background: rgba(255, 159, 10, 0.15);
+  color: #ff9f0a;
+}
+
+.license-link {
+  font-size: 12px;
+  color: var(--accent-color, #007aff);
+  text-decoration: none;
+}
+
+.license-link:hover {
+  text-decoration: underline;
+}
+
+.model-actions {
+  display: flex;
+  align-items: center;
+  min-width: 140px;
+}
+
+.installed-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.btn-download,
+.btn-installed,
+.btn-cancel,
+.btn-delete {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.btn-download {
+  background: var(--accent-color, #007aff);
+  color: white;
+}
+
+.btn-download:hover {
+  background: #0066d6;
+  transform: translateY(-1px);
+}
+
+.btn-download:active {
+  transform: translateY(0);
+}
+
+.btn-installed {
+  background: rgba(52, 199, 89, 0.15);
+  color: #34c759;
+  cursor: default;
+}
+
+.btn-cancel {
+  background: rgba(255, 59, 48, 0.15);
+  color: #ff3b30;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.btn-cancel:hover {
+  background: rgba(255, 59, 48, 0.25);
+}
+
+.btn-delete {
+  background: rgba(255, 59, 48, 0.15);
+  color: #ff3b30;
+  font-size: 13px;
+}
+
+.btn-delete:hover {
+  background: rgba(255, 59, 48, 0.25);
+  transform: translateY(-1px);
+}
+
+.btn-delete:active {
+  transform: translateY(0);
+}
+
+.download-progress {
+  width: 100%;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #007aff, #00d4ff);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-secondary, #999);
+}
+
+/* スクロールバースタイル */
+.model-store-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.model-store-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.model-store-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.model-store-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+  .model-store-container {
+    width: 95%;
+    max-height: 90vh;
+  }
+
+  .model-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .model-actions {
+    min-width: auto;
+  }
+
+  .model-specs {
+    flex-direction: column;
+    gap: 6px;
+  }
+}

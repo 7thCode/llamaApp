@@ -14,6 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - ✅ llama.cppを使用したローカルLLM実行（Metal GPU対応）
 - ✅ ChatGPT風のストリーミングチャットUI
 - ✅ 複数GGUFモデルの管理と切り替え
+- ✅ **HuggingFaceモデルストア** - プリセットモデルの1クリックダウンロード
 - ✅ SQLiteベースの会話履歴管理
 - ✅ マークダウン対応（コードブロックのシンタックスハイライト付き）
 - ✅ カスタムシステムプロンプト設定
@@ -54,22 +55,26 @@ llama/
 │   │   ├── main.js             # Electronエントリーポイント
 │   │   ├── llama-manager.js    # llama.cpp統合・推論管理
 │   │   ├── model-manager.js    # GGUFモデルファイル管理
+│   │   ├── model-downloader.js # HuggingFaceダウンロード管理 ⭐NEW
 │   │   ├── db-manager.js       # SQLite会話履歴管理
 │   │   └── ipc-handlers.js     # IPC通信ハンドラー
 │   ├── renderer/               # レンダラープロセス（ブラウザ環境）
 │   │   ├── index.html          # メインHTML
 │   │   ├── app.js              # UIメインロジック
 │   │   ├── components/
+│   │   │   ├── model-store.js  # モデルストアUI ⭐NEW
 │   │   │   ├── chat.js         # チャットコンポーネント
 │   │   │   ├── sidebar.js      # 会話履歴サイドバー
 │   │   │   ├── settings.js     # 設定パネル
 │   │   │   └── markdown.js     # マークダウンレンダラー
 │   │   └── styles/
 │   │       ├── main.css        # グローバルスタイル
-│   │       └── chat.css        # チャット専用スタイル
+│   │       ├── chat.css        # チャット専用スタイル
+│   │       └── model-store.css # モデルストアスタイル ⭐NEW
 │   ├── preload.js              # プリロードスクリプト（セキュアAPI公開）
 │   └── shared/
 │       ├── constants.js        # 定数定義
+│       ├── preset-models.json  # プリセットモデル定義 ⭐NEW
 │       └── types.js            # 型定義（JSDoc用）
 ├── build/
 │   └── entitlements.mac.plist  # macOSコード署名設定
@@ -213,25 +218,66 @@ CREATE INDEX idx_messages_conversation ON messages(conversation_id);
 CREATE INDEX idx_conversations_updated ON conversations(updated_at DESC);
 ```
 
+## モデルストア機能 ⭐NEW
+
+### 概要
+HuggingFaceの人気GGUFモデルを簡単にダウンロードできる機能。
+
+### 使い方
+1. ヘッダーの🏪ボタンをクリック
+2. プリセットモデル一覧から好みのモデルを選択
+3. ライセンス・メモリ要件を確認
+4. **ダウンロード**ボタンをクリック
+5. プログレスバーでダウンロード進捗を確認
+6. 完了後、モデルドロップダウンに自動追加
+
+### プリセットモデル（10種類）
+| モデル | サイズ | メモリ | 特徴 | ライセンス |
+|--------|--------|--------|------|-----------|
+| Llama 3.2 3B | 2.0GB | 4GB | 最新・軽量 | 非商用 |
+| Mistral 7B | 4.1GB | 6GB | 高性能 | 商用可 ✅ |
+| Phi-3 Mini | 2.2GB | 4GB | 小型 | 商用可 ✅ |
+| CodeLlama 7B | 3.8GB | 6GB | コード特化 | 非商用 |
+| Qwen 2.5 7B | 4.3GB | 6GB | 多言語 | 商用可 ✅ |
+| Gemma 2 2B | 1.6GB | 3GB | 超軽量 | 商用可 ✅ |
+| Neural Chat 7B | 4.1GB | 6GB | チャット | 商用可 ✅ |
+| Orca 2 7B | 3.8GB | 6GB | 推論強力 | 非商用 |
+| Starling LM 7B | 4.1GB | 6GB | RLHF | 商用可 ✅ |
+| Llama 2 7B | 3.8GB | 6GB | 安定 | 非商用 |
+
+### 技術仕様
+- **ダウンロード**: HTTPS直接ダウンロード（Node.js https module）
+- **プログレス**: IPC経由のリアルタイム更新（速度・残り時間）
+- **一時ファイル**: `.part`ファイルで管理
+- **保存先**: `~/Library/Application Support/Llamaapp/models/`
+- **エラーハンドリング**: ディスク容量チェック・ネットワークタイムアウト
+
 ## 実装ロードマップ
 
-### Phase 1: コア機能（MVP） - 1-2週間
-- [ ] node-llama-cppのMetal動作検証
-- [ ] 基本的なllama-manager実装
-- [ ] シンプルな入力欄 + 出力表示UI
-- [ ] 単一モデルでの質問応答動作確認
+### ✅ Phase 1: コア機能（MVP）
+- ✅ node-llama-cppのMetal動作検証
+- ✅ 基本的なllama-manager実装
+- ✅ シンプルな入力欄 + 出力表示UI
+- ✅ 単一モデルでの質問応答動作確認
 
-### Phase 2: ストリーミング + UI改善 - 1週間
-- [ ] IPC経由のリアルタイムトークン配信
-- [ ] マークダウンレンダリング（marked.js）
-- [ ] シンタックスハイライト（highlight.js）
-- [ ] メッセージのコピー・再生成機能
+### ✅ Phase 2: ストリーミング + UI改善
+- ✅ IPC経由のリアルタイムトークン配信
+- ✅ マークダウンレンダリング（marked.js）
+- ✅ シンタックスハイライト（highlight.js）
+- ✅ メッセージのコピー・再生成機能
 
-### Phase 3: モデル管理 - 1週間
-- [ ] model-manager実装
-- [ ] モデル一覧表示（ドロップダウン）
-- [ ] モデル切り替え（ホットスワップ）
-- [ ] モデル追加・削除UI
+### ✅ Phase 3: モデル管理
+- ✅ model-manager実装
+- ✅ モデル一覧表示（ドロップダウン）
+- ✅ モデル切り替え（ホットスワップ）
+- ✅ モデル追加・削除UI
+
+### ✅ Phase 3.5: HuggingFaceモデルストア ⭐NEW
+- ✅ プリセットモデル定義（10モデル）
+- ✅ model-downloader実装
+- ✅ ストリーミングダウンロード
+- ✅ プログレスバーUI
+- ✅ ライセンス・フィルタリング機能
 
 ### Phase 4: 会話履歴 - 1週間
 - [ ] SQLite統合（better-sqlite3）

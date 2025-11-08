@@ -7,6 +7,7 @@
   <title>LlamaApp - Local LLM Chat</title>
   <link rel="stylesheet" href="styles/main.css">
   <link rel="stylesheet" href="styles/chat.css">
+  <link rel="stylesheet" href="styles/model-store.css">
 </head>
 <body>
   <div id="app">
@@ -25,6 +26,7 @@
         </div>
       </div>
       <div class="header-right">
+        <button id="model-store-btn" title="モデルストア">🏪</button>
         <button id="settings-btn" title="設定">⚙️</button>
       </div>
     </header>
@@ -77,6 +79,7 @@
     </div>
   </div>
 
+  <script src="components/model-store.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

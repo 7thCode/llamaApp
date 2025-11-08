@@ -43,6 +43,15 @@ const IPC_CHANNELS = {
   MODEL_ADD: 'model:add',
   MODEL_DELETE: 'model:delete',
 
+  // モデルダウンロード
+  DOWNLOAD_START: 'download:start',
+  DOWNLOAD_CANCEL: 'download:cancel',
+  DOWNLOAD_LIST: 'download:list',
+  DOWNLOAD_PRESET_MODELS: 'download:preset-models',
+  DOWNLOAD_PROGRESS: 'download:progress',
+  DOWNLOAD_COMPLETE: 'download:complete',
+  DOWNLOAD_ERROR: 'download:error',
+
   // 会話管理
   CONVERSATION_LIST: 'conversation:list',
   CONVERSATION_LOAD: 'conversation:load',

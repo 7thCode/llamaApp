@@ -4,13 +4,16 @@
 
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs').promises;
 const LlamaManager = require('./llama-manager');
 const ModelManager = require('./model-manager');
+const ModelDownloader = require('./model-downloader');
 const { IPC_CHANNELS } = require('../shared/constants');
 
 let mainWindow;
 let llamaManager;
 let modelManager;
+let modelDownloader;
 
 /**
  * メインウィンドウを作成
@@ -66,7 +69,7 @@ function createWindow() {
  * アプリケーション初期化
  */
 async function initializeApp() {
-  // LlamaManagerとModelManagerの初期化
+  // LlamaManager、ModelManager、ModelDownloaderの初期化
   llamaManager = new LlamaManager();
   modelManager = new ModelManager();
 
@@ -181,6 +184,72 @@ function setupIpcHandlers() {
       return { success: true };
     } catch (error) {
       console.error('Failed to delete model:', error);
+      throw error;
+    }
+  });
+
+  // プリセットモデル一覧取得
+  ipcMain.handle(IPC_CHANNELS.DOWNLOAD_PRESET_MODELS, async () => {
+    try {
+      const presetPath = path.join(__dirname, '../shared/preset-models.json');
+      const data = await fs.readFile(presetPath, 'utf-8');
+      const presetModels = JSON.parse(data);
+      return presetModels.models;
+    } catch (error) {
+      console.error('Failed to load preset models:', error);
+      throw error;
+    }
+  });
+
+  // モデルダウンロード開始
+  ipcMain.handle(IPC_CHANNELS.DOWNLOAD_START, async (event, { modelId }) => {
+    try {
+      // プリセットモデルを読み込み
+      const presetPath = path.join(__dirname, '../shared/preset-models.json');
+      const data = await fs.readFile(presetPath, 'utf-8');
+      const presetModels = JSON.parse(data);
+
+      const modelConfig = presetModels.models.find(m => m.id === modelId);
+      if (!modelConfig) {
+        throw new Error('Model not found in preset list');
+      }
+
+      // ModelDownloaderの初期化（遅延初期化）
+      if (!modelDownloader) {
+        const { MODELS_DIR } = require('../shared/constants');
+        modelDownloader = new ModelDownloader(mainWindow, MODELS_DIR);
+      }
+
+      const result = await modelDownloader.downloadModel(modelConfig);
+      return result;
+    } catch (error) {
+      console.error('Failed to start download:', error);
+      throw error;
+    }
+  });
+
+  // ダウンロードキャンセル
+  ipcMain.handle(IPC_CHANNELS.DOWNLOAD_CANCEL, async (event, { downloadId }) => {
+    try {
+      if (!modelDownloader) {
+        return { success: false, error: 'No active downloads' };
+      }
+      return modelDownloader.cancelDownload(downloadId);
+    } catch (error) {
+      console.error('Failed to cancel download:', error);
+      throw error;
+    }
+  });
+
+  // アクティブなダウンロード一覧取得
+  ipcMain.handle(IPC_CHANNELS.DOWNLOAD_LIST, async () => {
+    try {
+      if (!modelDownloader) {
+        return [];
+      }
+      return modelDownloader.listActiveDownloads();
+    } catch (error) {
+      console.error('Failed to list downloads:', error);
       throw error;
     }
   });
