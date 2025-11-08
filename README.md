@@ -6,12 +6,22 @@ macOS専用のローカルLLMチャットアプリケーション
 
 LlamaAppは、llama.cppを使用してローカルでLLMを実行できるElectronアプリケーションです。Metal GPUアクセラレーションに対応し、プライバシーを完全に保護します。
 
+### 主要機能
+
+- ✅ **ChatGPT風のストリーミングUI** - リアルタイムでトークン表示
+- ✅ **HuggingFaceモデルストア** - 13種類のプリセットモデルを1クリックダウンロード
+- ✅ **モデル管理** - ダウンロード、削除、切り替えが簡単
+- ✅ **マークダウン対応** - コードブロックのシンタックスハイライト付き
+- ✅ **Metal GPU加速** - macOS最適化で高速推論
+- ✅ **完全プライベート** - すべてローカルで動作、データは外部送信なし
+
 ## 必要環境
 
 - macOS 13 (Ventura) 以降
 - Node.js 18以降
-- 8GB以上のメモリ（推奨: 16GB）
-- Metal対応GPU
+- メモリ: 8GB以上（推奨: 16GB）
+- ストレージ: モデルごとに1-12GB
+- Metal対応GPU（Apple Silicon推奨）
 
 ## セットアップ
 
@@ -29,17 +39,6 @@ npm run rebuild
 
 このステップは`node-llama-cpp`のネイティブバインディングをElectron用にビルドするために必要です。
 
-### 3. モデルの準備
-
-GGUFフォーマットのLLMモデルを用意してください。以下のような場所からダウンロードできます：
-
-- [Hugging Face](https://huggingface.co/models?search=gguf)
-- [TheBloke's models](https://huggingface.co/TheBloke)
-
-推奨モデル：
-- 7B Q4量子化（約4GB）
-- 7B Q5量子化（約5GB）
-
 ## 使用方法
 
 ### アプリの起動
@@ -53,18 +52,68 @@ npm start
 npm run dev
 ```
 
-### 初回セットアップ
+### モデルのダウンロード（推奨）
+
+#### HuggingFaceモデルストアを使う
 
 1. アプリを起動
-2. ヘッダーの「+ ボタン」をクリック
+2. ヘッダーの **🏪 ボタン** をクリック
+3. モデルストアから好きなモデルを選択
+4. **ダウンロード** ボタンをクリック
+5. プログレスバーでダウンロード進捗を確認
+6. 完了後、モデルドロップダウンに自動追加
+
+#### プリセットモデル一覧（13種類）
+
+| モデル | サイズ | メモリ | 特徴 | ライセンス |
+|--------|--------|--------|------|-----------|
+| **超軽量** |
+| TinyLlama 1.1B Chat | 669MB | 2GB | 超小型・超高速レスポンス | 商用可 ✅ |
+| Gemma 2 2B Instruct | 1.6GB | 3GB | Google製・軽量 | 商用可 ✅ |
+| **軽量** |
+| Llama 3.2 3B Instruct | 2.0GB | 4GB | 最新・高性能 | 非商用 |
+| Phi-3 Mini 4K | 2.2GB | 4GB | Microsoft製 | 商用可 ✅ |
+| **中型** |
+| Llama 2 7B Chat | 3.8GB | 6GB | 安定版 | 非商用 |
+| CodeLlama 7B Instruct | 3.8GB | 6GB | コード特化 | 非商用 |
+| Orca 2 7B | 3.8GB | 6GB | 強力な推論 | 非商用 |
+| Mistral 7B Instruct | 4.1GB | 6GB | 高性能 | 商用可 ✅ |
+| Neural Chat 7B v3 | 4.1GB | 6GB | チャット最適化 | 商用可 ✅ |
+| Starling LM 7B Alpha | 4.1GB | 6GB | RLHF訓練済み | 商用可 ✅ |
+| Qwen 2.5 7B Instruct | 4.3GB | 6GB | 多言語対応 | 商用可 ✅ |
+| Llama 3.1 8B Instruct | 4.9GB | 8GB | 最新・強力 | 非商用 |
+| **大型** |
+| OpenAI GPT-OSS 20B | 11.6GB | 16GB | 低レイテンシ | 商用可 ✅ |
+
+### 手動でモデルを追加
+
+1. [Hugging Face](https://huggingface.co/models?search=gguf) などからGGUFモデルをダウンロード
+2. アプリのヘッダーの **+ ボタン** をクリック
 3. ダウンロードしたGGUFファイルを選択
-4. モデルドロップダウンから追加したモデルを選択
-5. モデルのロード完了を待つ（20-40秒）
-6. チャットを開始！
+4. モデルが自動的にインポートされます
 
-### モデルの保存場所
+### モデルの削除
 
-追加したモデルは以下の場所にコピーされます：
+1. **🏪 モデルストア** を開く
+2. インストール済みモデルの **🗑️ 削除** ボタンをクリック
+3. 確認ダイアログで **OK** をクリック
+
+### モデルの切り替え
+
+1. ヘッダーのモデルドロップダウンから選択
+2. モデルのロード完了を待つ（20-40秒）
+3. チャットを開始！
+
+### チャット機能
+
+- **ストリーミング応答**: リアルタイムでAIの応答を表示
+- **マークダウン対応**: コードブロック、リスト、テーブルなど
+- **シンタックスハイライト**: プログラミング言語に対応
+- **メッセージコピー**: 各メッセージをクリップボードにコピー可能
+
+## モデルの保存場所
+
+ダウンロード・追加したモデルは以下の場所に保存されます：
 
 ```
 ~/Library/Application Support/Llamaapp/models/
@@ -75,12 +124,40 @@ npm run dev
 ### プロジェクト構造
 
 ```
-src/
-├── main/           # メインプロセス（Node.js）
-├── renderer/       # レンダラープロセス（UI）
-├── preload.js      # セキュアAPI公開
-└── shared/         # 共通定数
+llamaApp/
+├── src/
+│   ├── main/                   # メインプロセス（Node.js環境）
+│   │   ├── main.js             # Electronエントリーポイント
+│   │   ├── llama-manager.js    # llama.cpp統合・推論管理
+│   │   ├── model-manager.js    # GGUFモデルファイル管理
+│   │   ├── model-downloader.js # HuggingFaceダウンロード管理
+│   │   └── ipc-handlers.js     # IPC通信ハンドラー
+│   ├── renderer/               # レンダラープロセス（ブラウザ環境）
+│   │   ├── index.html          # メインHTML
+│   │   ├── app.js              # UIメインロジック
+│   │   ├── components/
+│   │   │   └── model-store.js  # モデルストアUI
+│   │   └── styles/
+│   │       ├── main.css        # グローバルスタイル
+│   │       ├── chat.css        # チャット専用スタイル
+│   │       └── model-store.css # モデルストアスタイル
+│   ├── preload.js              # プリロードスクリプト（セキュアAPI公開）
+│   └── shared/
+│       ├── constants.js        # 定数定義
+│       └── preset-models.json  # プリセットモデル定義
+├── build/
+│   └── entitlements.mac.plist  # macOSコード署名設定
+└── package.json
 ```
+
+### 技術スタック
+
+| 領域 | 技術 | 用途 |
+|------|------|------|
+| **LLM統合** | node-llama-cpp | llama.cppのNode.jsバインディング（Metal対応） |
+| **マークダウン** | marked.js | Markdown → HTML変換 |
+| **シンタックスハイライト** | highlight.js | コードブロックの色付け |
+| **ビルド** | electron-builder | macOS DMGパッケージ作成 |
 
 ### ビルド（配布用パッケージ作成）
 
@@ -110,11 +187,13 @@ npm run build            # 全プラットフォーム対応
 
 | コマンド | 説明 |
 |---------|------|
+| `npm start` | アプリケーションを起動 |
+| `npm run dev` | デバッグモードで起動（DevTools自動起動） |
+| `npm run rebuild` | ネイティブモジュールのリビルド |
 | `npm run package:mac` | クリーン→リビルド→macOS DMG作成（推奨） |
 | `npm run package:dir` | クリーン→リビルド→ディレクトリ形式 |
 | `npm run package` | クリーン→リビルド→全プラットフォーム |
 | `npm run clean` | dist/を削除 |
-| `npm run rebuild` | ネイティブモジュールのリビルド |
 
 #### 生成されるファイル
 
@@ -136,6 +215,12 @@ npm run build            # 全プラットフォーム対応
 - GGUFファイルが破損していないか確認
 - `npm run rebuild`を再実行
 
+### ダウンロードが失敗する
+
+- インターネット接続を確認
+- ディスク容量が十分にあるか確認
+- 一時的にファイアウォールを無効化してみる
+
 ### アプリが起動しない
 
 ```bash
@@ -152,22 +237,47 @@ npm run rebuild
 ggml_metal_init: loaded kernel
 ```
 
-## Phase 1 (MVP) の機能
+## セキュリティ
 
-現在実装されている機能：
+- **サンドボックス化**: レンダラープロセスはサンドボックス環境で実行
+- **コンテキスト分離**: プリロードスクリプトでセキュアにAPI公開
+- **CSP準拠**: Content Security Policyに準拠したイベントハンドリング
+- **ローカル実行**: すべての処理がローカルで完結、データは外部送信なし
+
+## 実装済み機能
+
+### Phase 1-3.5（現在のバージョン）
 
 - ✅ 基本的なチャットUI
 - ✅ llama.cpp統合（Metal GPU対応）
 - ✅ ストリーミング応答
 - ✅ 複数モデル管理
 - ✅ モデル切り替え
+- ✅ マークダウンレンダリング
+- ✅ シンタックスハイライト
+- ✅ HuggingFaceモデルストア（13種類のプリセット）
+- ✅ プログレスバー付きダウンロード
+- ✅ モデル削除機能
+- ✅ ライセンスフィルタリング
 
-## 今後の予定
+### 今後の予定
 
-- [ ] マークダウンレンダリング（Phase 2）
 - [ ] 会話履歴の保存（Phase 4）
-- [ ] システムプロンプト設定（Phase 5）
+- [ ] 会話の新規作成・削除・切り替え
+- [ ] カスタムシステムプロンプト設定（Phase 5）
+- [ ] プリセット管理
 
 ## ライセンス
 
 MIT
+
+## 貢献
+
+バグ報告や機能提案は、GitHubのIssuesでお願いします。
+
+## リソース
+
+- [llama.cpp](https://github.com/ggerganov/llama.cpp)
+- [node-llama-cpp](https://github.com/withcatai/node-llama-cpp)
+- [Electron](https://www.electronjs.org/)
+- [Hugging Face](https://huggingface.co/)
