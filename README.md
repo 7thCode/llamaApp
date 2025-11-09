@@ -10,6 +10,7 @@ LlamaAppは、llama.cppを使用してローカルでLLMを実行できるElectr
 
 - ✅ **ChatGPT風のストリーミングUI** - リアルタイムでトークン表示
 - ✅ **HuggingFaceモデルストア** - 13種類のプリセットモデルを1クリックダウンロード
+- ✅ **RAG - Web Knowledge** - ウェブページをインデックス化して検索可能に
 - ✅ **モデル管理** - ダウンロード、削除、切り替えが簡単
 - ✅ **マークダウン対応** - コードブロックのシンタックスハイライト付き
 - ✅ **Metal GPU加速** - macOS最適化で高速推論
@@ -111,6 +112,65 @@ npm run dev
 - **シンタックスハイライト**: プログラミング言語に対応
 - **メッセージコピー**: 各メッセージをクリップボードにコピー可能
 
+### RAG機能（Web Knowledge）
+
+RAG（Retrieval Augmented Generation）を使うと、ウェブページの内容をLLMのコンテキストとして利用できます。
+
+#### RAGの使い方
+
+1. **パネルを開く**
+   - ヘッダーの **🔍 ボタン** をクリック
+
+2. **URLを追加**
+   - 入力欄にウェブページのURLを入力
+   - **追加** ボタンをクリック
+
+3. **インデックス化**
+   - 追加したURLの **インデックス化** ボタンをクリック
+   - プログレスバーで進捗を確認：
+     - **fetching**: ページ取得中
+     - **chunking**: テキスト分割中
+     - **indexing**: データベース保存中
+   - 完了すると「完了」ステータスに変わります
+
+4. **RAGを有効化**
+   - パネル上部の **RAG有効化** トグルをONにする
+
+5. **チャットで使う**
+   - RAGが有効な状態で質問すると、インデックス化したページから関連情報を自動検索
+   - 検索結果をコンテキストとしてLLMに渡し、より正確な回答を生成
+
+#### RAGの仕組み
+
+```
+質問 → 検索（インデックスから関連チャンク取得）→ コンテキスト生成 → LLM推論 → 回答
+```
+
+- **チャンク分割**: 長いテキストを500文字ずつのチャンクに分割
+- **検索**: クエリに関連する上位3チャンクを取得（簡易的なキーワードマッチング）
+- **コンテキスト拡張**: 検索結果をプロンプトに追加してLLMに渡す
+
+#### 使用例
+
+1. 技術ドキュメントをインデックス化
+   - `https://react.dev/reference/react/useState`
+   - 「useStateの使い方を教えて」と質問すると、公式ドキュメントの内容を参照
+
+2. ブログ記事をインデックス化
+   - 複数の関連記事をインデックス化
+   - 記事の内容に基づいた質問に回答
+
+3. ニュース記事をインデックス化
+   - 最新ニュースをインデックス化
+   - 時事問題について最新情報を元に回答
+
+#### 制限事項
+
+- **検索方式**: 簡易的なキーワードマッチング（ベクトル検索ではない）
+- **対応形式**: HTMLのみ（PDF、動画等は非対応）
+- **JavaScript**: 静的HTML取得のみ（SPAは内容取得できない場合あり）
+- **認証**: ログインが必要なページは取得不可
+
 ## モデルの保存場所
 
 ダウンロード・追加したモデルは以下の場所に保存されます：
@@ -126,27 +186,33 @@ npm run dev
 ```
 llamaApp/
 ├── src/
-│   ├── main/                   # メインプロセス（Node.js環境）
-│   │   ├── main.js             # Electronエントリーポイント
-│   │   ├── llama-manager.js    # llama.cpp統合・推論管理
-│   │   ├── model-manager.js    # GGUFモデルファイル管理
-│   │   ├── model-downloader.js # HuggingFaceダウンロード管理
-│   │   └── ipc-handlers.js     # IPC通信ハンドラー
-│   ├── renderer/               # レンダラープロセス（ブラウザ環境）
-│   │   ├── index.html          # メインHTML
-│   │   ├── app.js              # UIメインロジック
+│   ├── main/                    # メインプロセス（Node.js環境）
+│   │   ├── main.js              # Electronエントリーポイント
+│   │   ├── llama-manager.js     # llama.cpp統合・推論管理
+│   │   ├── model-manager.js     # GGUFモデルファイル管理
+│   │   ├── model-downloader.js  # HuggingFaceダウンロード管理
+│   │   ├── rag-manager.js       # RAG統合マネージャー
+│   │   ├── web-fetcher.js       # ウェブページ取得
+│   │   ├── chunk-processor.js   # テキストチャンク分割
+│   │   ├── db-manager.js        # SQLiteデータベース管理
+│   │   └── ipc-handlers.js      # IPC通信ハンドラー
+│   ├── renderer/                # レンダラープロセス（ブラウザ環境）
+│   │   ├── index.html           # メインHTML
+│   │   ├── app.js               # UIメインロジック
 │   │   ├── components/
-│   │   │   └── model-store.js  # モデルストアUI
+│   │   │   ├── model-store.js   # モデルストアUI
+│   │   │   └── rag-panel.js     # RAGパネルUI
 │   │   └── styles/
-│   │       ├── main.css        # グローバルスタイル
-│   │       ├── chat.css        # チャット専用スタイル
-│   │       └── model-store.css # モデルストアスタイル
-│   ├── preload.js              # プリロードスクリプト（セキュアAPI公開）
+│   │       ├── main.css         # グローバルスタイル
+│   │       ├── chat.css         # チャット専用スタイル
+│   │       ├── model-store.css  # モデルストアスタイル
+│   │       └── rag-panel.css    # RAGパネルスタイル
+│   ├── preload.js               # プリロードスクリプト（セキュアAPI公開）
 │   └── shared/
-│       ├── constants.js        # 定数定義
-│       └── preset-models.json  # プリセットモデル定義
+│       ├── constants.js         # 定数定義
+│       └── preset-models.json   # プリセットモデル定義
 ├── build/
-│   └── entitlements.mac.plist  # macOSコード署名設定
+│   └── entitlements.mac.plist   # macOSコード署名設定
 └── package.json
 ```
 
@@ -155,6 +221,9 @@ llamaApp/
 | 領域 | 技術 | 用途 |
 |------|------|------|
 | **LLM統合** | node-llama-cpp | llama.cppのNode.jsバインディング（Metal対応） |
+| **データベース** | better-sqlite3 | RAGインデックス・会話履歴の永続化 |
+| **ウェブスクレイピング** | https (Node.js) | ウェブページ取得 |
+| **HTML解析** | cheerio | HTML→テキスト抽出 |
 | **マークダウン** | marked.js | Markdown → HTML変換 |
 | **シンタックスハイライト** | highlight.js | コードブロックの色付け |
 | **ビルド** | electron-builder | macOS DMGパッケージ作成 |
@@ -259,6 +328,12 @@ ggml_metal_init: loaded kernel
 - ✅ プログレスバー付きダウンロード
 - ✅ モデル削除機能
 - ✅ ライセンスフィルタリング
+- ✅ **RAG（Retrieval Augmented Generation）**
+  - ✅ ウェブページのインデックス化
+  - ✅ テキストチャンク分割
+  - ✅ 簡易的な検索機能
+  - ✅ プロンプト拡張（コンテキスト注入）
+  - ✅ SQLiteによる永続化
 
 ### 今後の予定
 
@@ -266,6 +341,7 @@ ggml_metal_init: loaded kernel
 - [ ] 会話の新規作成・削除・切り替え
 - [ ] カスタムシステムプロンプト設定（Phase 5）
 - [ ] プリセット管理
+- [ ] RAG検索の高度化（ベクトル検索、セマンティック検索）
 
 ## ライセンス
 
