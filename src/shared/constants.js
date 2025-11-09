@@ -28,6 +28,9 @@ const DB_DIR = path.join(
 // データベースファイルパス
 const DB_PATH = path.join(DB_DIR, 'conversations.db');
 
+// RAG用データベースファイルパス
+const RAG_DB_PATH = path.join(DB_DIR, 'rag.db');
+
 // IPC チャンネル名
 const IPC_CHANNELS = {
   // Llama操作
@@ -83,6 +86,7 @@ module.exports = {
   MODELS_DIR,
   DB_DIR,
   DB_PATH,
+  RAG_DB_PATH,
   IPC_CHANNELS,
   DEFAULT_SETTINGS,
 };

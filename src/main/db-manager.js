@@ -4,7 +4,7 @@
  */
 
 const Database = require('better-sqlite3');
-const { DB_PATH } = require('../shared/constants');
+const { RAG_DB_PATH } = require('../shared/constants');
 const fs = require('fs');
 const path = require('path');
 
@@ -19,21 +19,21 @@ class DBManager {
   initialize() {
     try {
       // データベースディレクトリ作成
-      const dbDir = path.dirname(DB_PATH);
+      const dbDir = path.dirname(RAG_DB_PATH);
       if (!fs.existsSync(dbDir)) {
         fs.mkdirSync(dbDir, { recursive: true });
       }
 
       // データベース接続
-      this.db = new Database(DB_PATH);
+      this.db = new Database(RAG_DB_PATH);
       this.db.pragma('journal_mode = WAL');
 
       // スキーマ作成
       this.createTables();
 
-      console.log('Database initialized:', DB_PATH);
+      console.log('RAG Database initialized:', RAG_DB_PATH);
     } catch (error) {
-      console.error('Failed to initialize database:', error);
+      console.error('Failed to initialize RAG database:', error);
       throw error;
     }
   }

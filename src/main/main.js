@@ -90,9 +90,15 @@ async function initializeApp() {
  * RAG初期化（ウィンドウ作成後）
  */
 function initializeRag() {
-  ragManager = new RagManager(mainWindow);
-  ragManager.initialize();
-  console.log('RAG Manager initialized');
+  try {
+    ragManager = new RagManager(mainWindow);
+    ragManager.initialize();
+    console.log('RAG Manager initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize RAG Manager:', error);
+    console.error('RAG features will be unavailable');
+    ragManager = null; // エラー時はnullに設定
+  }
 }
 
 /**
@@ -276,6 +282,9 @@ function setupIpcHandlers() {
   // URL追加
   ipcMain.handle(IPC_CHANNELS.RAG_ADD_URL, async (event, { url }) => {
     try {
+      if (!ragManager) {
+        throw new Error('RAG Manager not initialized');
+      }
       return ragManager.addUrl(url);
     } catch (error) {
       console.error('Failed to add URL:', error);
@@ -286,6 +295,9 @@ function setupIpcHandlers() {
   // URL削除
   ipcMain.handle(IPC_CHANNELS.RAG_REMOVE_URL, async (event, { id }) => {
     try {
+      if (!ragManager) {
+        throw new Error('RAG Manager not initialized');
+      }
       ragManager.removeUrl(id);
       return { success: true };
     } catch (error) {
@@ -297,6 +309,9 @@ function setupIpcHandlers() {
   // URL一覧取得
   ipcMain.handle(IPC_CHANNELS.RAG_LIST_URLS, async () => {
     try {
+      if (!ragManager) {
+        throw new Error('RAG Manager not initialized');
+      }
       return ragManager.listUrls();
     } catch (error) {
       console.error('Failed to list URLs:', error);
@@ -307,6 +322,9 @@ function setupIpcHandlers() {
   // URLインデックス化
   ipcMain.handle(IPC_CHANNELS.RAG_INDEX_URL, async (event, { id }) => {
     try {
+      if (!ragManager) {
+        throw new Error('RAG Manager not initialized');
+      }
       return await ragManager.indexUrl(id);
     } catch (error) {
       console.error('Failed to index URL:', error);
@@ -317,6 +335,9 @@ function setupIpcHandlers() {
   // 検索
   ipcMain.handle(IPC_CHANNELS.RAG_SEARCH, async (event, { query, limit }) => {
     try {
+      if (!ragManager) {
+        throw new Error('RAG Manager not initialized');
+      }
       return ragManager.search(query, limit);
     } catch (error) {
       console.error('Failed to search:', error);
@@ -327,6 +348,9 @@ function setupIpcHandlers() {
   // RAG有効/無効切り替え
   ipcMain.handle(IPC_CHANNELS.RAG_TOGGLE, async (event, { enabled }) => {
     try {
+      if (!ragManager) {
+        throw new Error('RAG Manager not initialized');
+      }
       ragManager.toggleRag(enabled);
       return { success: true, enabled };
     } catch (error) {
@@ -338,6 +362,9 @@ function setupIpcHandlers() {
   // RAG状態取得
   ipcMain.handle(IPC_CHANNELS.RAG_GET_STATUS, async () => {
     try {
+      if (!ragManager) {
+        throw new Error('RAG Manager not initialized');
+      }
       return ragManager.getStatus();
     } catch (error) {
       console.error('Failed to get RAG status:', error);
@@ -365,6 +392,7 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
+    initializeRag(); // ウィンドウ再作成時にRAGも再初期化
   }
 });
 
