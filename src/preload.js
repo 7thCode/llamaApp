@@ -34,6 +34,18 @@ const IPC_CHANNELS = {
   CONVERSATION_LOAD: 'conversation:load',
   CONVERSATION_CREATE: 'conversation:create',
   CONVERSATION_DELETE: 'conversation:delete',
+
+  // RAG管理
+  RAG_ADD_URL: 'rag:addUrl',
+  RAG_REMOVE_URL: 'rag:removeUrl',
+  RAG_LIST_URLS: 'rag:listUrls',
+  RAG_INDEX_URL: 'rag:indexUrl',
+  RAG_SEARCH: 'rag:search',
+  RAG_TOGGLE: 'rag:toggle',
+  RAG_GET_STATUS: 'rag:getStatus',
+  RAG_INDEX_PROGRESS: 'rag:indexProgress',
+  RAG_INDEX_COMPLETE: 'rag:indexComplete',
+  RAG_INDEX_ERROR: 'rag:indexError',
 };
 
 // セキュアなAPIをwindow.llamaAPIとして公開
@@ -102,4 +114,35 @@ contextBridge.exposeInMainWorld('llamaAPI', {
 
   deleteConversation: (id) =>
     ipcRenderer.invoke(IPC_CHANNELS.CONVERSATION_DELETE, { id }),
+
+  // RAG操作
+  addUrl: (url) =>
+    ipcRenderer.invoke(IPC_CHANNELS.RAG_ADD_URL, { url }),
+
+  removeUrl: (id) =>
+    ipcRenderer.invoke(IPC_CHANNELS.RAG_REMOVE_URL, { id }),
+
+  listUrls: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.RAG_LIST_URLS),
+
+  indexUrl: (id) =>
+    ipcRenderer.invoke(IPC_CHANNELS.RAG_INDEX_URL, { id }),
+
+  search: (query, limit) =>
+    ipcRenderer.invoke(IPC_CHANNELS.RAG_SEARCH, { query, limit }),
+
+  toggleRag: (enabled) =>
+    ipcRenderer.invoke(IPC_CHANNELS.RAG_TOGGLE, { enabled }),
+
+  getRagStatus: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.RAG_GET_STATUS),
+
+  onIndexProgress: (callback) =>
+    ipcRenderer.on(IPC_CHANNELS.RAG_INDEX_PROGRESS, (event, data) => callback(data)),
+
+  onIndexComplete: (callback) =>
+    ipcRenderer.on(IPC_CHANNELS.RAG_INDEX_COMPLETE, (event, data) => callback(data)),
+
+  onIndexError: (callback) =>
+    ipcRenderer.on(IPC_CHANNELS.RAG_INDEX_ERROR, (event, data) => callback(data)),
 });

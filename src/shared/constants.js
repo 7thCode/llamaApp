@@ -57,6 +57,18 @@ const IPC_CHANNELS = {
   CONVERSATION_LOAD: 'conversation:load',
   CONVERSATION_CREATE: 'conversation:create',
   CONVERSATION_DELETE: 'conversation:delete',
+
+  // RAG管理
+  RAG_ADD_URL: 'rag:addUrl',
+  RAG_REMOVE_URL: 'rag:removeUrl',
+  RAG_LIST_URLS: 'rag:listUrls',
+  RAG_INDEX_URL: 'rag:indexUrl',
+  RAG_SEARCH: 'rag:search',
+  RAG_TOGGLE: 'rag:toggle',
+  RAG_GET_STATUS: 'rag:getStatus',
+  RAG_INDEX_PROGRESS: 'rag:indexProgress',
+  RAG_INDEX_COMPLETE: 'rag:indexComplete',
+  RAG_INDEX_ERROR: 'rag:indexError',
 };
 
 // デフォルト設定

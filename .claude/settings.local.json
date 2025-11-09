@@ -34,7 +34,9 @@
       "Bash(sips:*)",
       "Bash(iconutil:*)",
       "mcp__serena__search_for_pattern",
-      "mcp__serena__activate_project"
+      "mcp__serena__activate_project",
+      "Bash(npm run build:*)",
+      "Bash(npm uninstall:*)"
     ],
     "deny": [],
     "ask": []

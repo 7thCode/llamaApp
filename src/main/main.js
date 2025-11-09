@@ -8,12 +8,14 @@ const fs = require('fs').promises;
 const LlamaManager = require('./llama-manager');
 const ModelManager = require('./model-manager');
 const ModelDownloader = require('./model-downloader');
+const RagManager = require('./rag-manager');
 const { IPC_CHANNELS } = require('../shared/constants');
 
 let mainWindow;
 let llamaManager;
 let modelManager;
 let modelDownloader;
+let ragManager;
 
 /**
  * メインウィンドウを作成
@@ -69,7 +71,7 @@ function createWindow() {
  * アプリケーション初期化
  */
 async function initializeApp() {
-  // LlamaManager、ModelManager、ModelDownloaderの初期化
+  // LlamaManager、ModelManager、ModelDownloader、RagManagerの初期化
   llamaManager = new LlamaManager();
   modelManager = new ModelManager();
 
@@ -85,6 +87,15 @@ async function initializeApp() {
 }
 
 /**
+ * RAG初期化（ウィンドウ作成後）
+ */
+function initializeRag() {
+  ragManager = new RagManager(mainWindow);
+  ragManager.initialize();
+  console.log('RAG Manager initialized');
+}
+
+/**
  * IPCハンドラーの設定
  */
 function setupIpcHandlers() {
@@ -95,9 +106,15 @@ function setupIpcHandlers() {
         throw new Error('No model loaded. Please load a model first.');
       }
 
+      // RAG拡張プロンプト生成
+      let enhancedPrompt = prompt;
+      if (ragManager) {
+        enhancedPrompt = await ragManager.augmentPrompt(prompt, prompt);
+      }
+
       const fullPrompt = systemPrompt
-        ? `${systemPrompt}\n\nUser: ${prompt}\nAssistant:`
-        : prompt;
+        ? `${systemPrompt}\n\nUser: ${enhancedPrompt}\nAssistant:`
+        : enhancedPrompt;
 
       const result = await llamaManager.generate(
         fullPrompt,
@@ -253,13 +270,88 @@ function setupIpcHandlers() {
       throw error;
     }
   });
+
+  // === RAG管理 ===
+
+  // URL追加
+  ipcMain.handle(IPC_CHANNELS.RAG_ADD_URL, async (event, { url }) => {
+    try {
+      return ragManager.addUrl(url);
+    } catch (error) {
+      console.error('Failed to add URL:', error);
+      throw error;
+    }
+  });
+
+  // URL削除
+  ipcMain.handle(IPC_CHANNELS.RAG_REMOVE_URL, async (event, { id }) => {
+    try {
+      ragManager.removeUrl(id);
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to remove URL:', error);
+      throw error;
+    }
+  });
+
+  // URL一覧取得
+  ipcMain.handle(IPC_CHANNELS.RAG_LIST_URLS, async () => {
+    try {
+      return ragManager.listUrls();
+    } catch (error) {
+      console.error('Failed to list URLs:', error);
+      throw error;
+    }
+  });
+
+  // URLインデックス化
+  ipcMain.handle(IPC_CHANNELS.RAG_INDEX_URL, async (event, { id }) => {
+    try {
+      return await ragManager.indexUrl(id);
+    } catch (error) {
+      console.error('Failed to index URL:', error);
+      throw error;
+    }
+  });
+
+  // 検索
+  ipcMain.handle(IPC_CHANNELS.RAG_SEARCH, async (event, { query, limit }) => {
+    try {
+      return ragManager.search(query, limit);
+    } catch (error) {
+      console.error('Failed to search:', error);
+      throw error;
+    }
+  });
+
+  // RAG有効/無効切り替え
+  ipcMain.handle(IPC_CHANNELS.RAG_TOGGLE, async (event, { enabled }) => {
+    try {
+      ragManager.toggleRag(enabled);
+      return { success: true, enabled };
+    } catch (error) {
+      console.error('Failed to toggle RAG:', error);
+      throw error;
+    }
+  });
+
+  // RAG状態取得
+  ipcMain.handle(IPC_CHANNELS.RAG_GET_STATUS, async () => {
+    try {
+      return ragManager.getStatus();
+    } catch (error) {
+      console.error('Failed to get RAG status:', error);
+      throw error;
+    }
+  });
 }
 
 // アプリケーション起動
 app.whenReady().then(async () => {
   await initializeApp();
-  setupIpcHandlers();
   createWindow();
+  initializeRag(); // ウィンドウ作成後にRAG初期化
+  setupIpcHandlers();
 });
 
 // すべてのウィンドウが閉じられた時
@@ -290,6 +382,10 @@ app.on('before-quit', async (event) => {
       if (llamaManager) {
         await llamaManager.unloadModel();
         console.log('Model unloaded successfully');
+      }
+      if (ragManager) {
+        ragManager.close();
+        console.log('RAG Manager closed successfully');
       }
     } catch (error) {
       console.error('Error during cleanup:', error);

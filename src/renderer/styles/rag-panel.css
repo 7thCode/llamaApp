@@ -1,0 +1,337 @@
+/**
+ * RAGパネルスタイル
+ */
+
+/* パネルオーバーレイ */
+.rag-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rag-panel.hidden {
+  display: none;
+}
+
+.rag-panel-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+/* パネルコンテンツ */
+.rag-panel-content {
+  position: relative;
+  background: #2a2a2a;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 700px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* ヘッダー */
+.rag-panel-header {
+  padding: 20px;
+  border-bottom: 1px solid #404040;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.rag-panel-header h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: #404040;
+  color: #ffffff;
+}
+
+/* パネルボディ */
+.rag-panel-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* RAGトグルセクション */
+.rag-toggle-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  background: #333333;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.rag-toggle {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.rag-toggle input[type="checkbox"] {
+  display: none;
+}
+
+.toggle-slider {
+  width: 48px;
+  height: 24px;
+  background: #555;
+  border-radius: 12px;
+  position: relative;
+  transition: background 0.3s;
+  margin-right: 10px;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.3s;
+}
+
+.rag-toggle input:checked + .toggle-slider {
+  background: #4CAF50;
+}
+
+.rag-toggle input:checked + .toggle-slider::before {
+  transform: translateX(24px);
+}
+
+.toggle-label {
+  font-size: 14px;
+  color: #cccccc;
+}
+
+.rag-status {
+  font-size: 13px;
+  color: #888888;
+}
+
+#indexed-count {
+  color: #4CAF50;
+  font-weight: 600;
+}
+
+/* URL追加セクション */
+.url-add-section {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.url-input {
+  flex: 1;
+  padding: 10px 14px;
+  background: #333333;
+  border: 1px solid #444444;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 14px;
+  transition: border 0.2s;
+}
+
+.url-input:focus {
+  outline: none;
+  border-color: #4CAF50;
+}
+
+.add-url-btn {
+  padding: 10px 20px;
+  background: #4CAF50;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.add-url-btn:hover {
+  background: #45a049;
+}
+
+/* URL一覧セクション */
+.url-list-section h3 {
+  font-size: 14px;
+  color: #aaaaaa;
+  margin: 0 0 10px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.url-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.empty-message {
+  text-align: center;
+  color: #666666;
+  padding: 30px;
+  font-size: 14px;
+}
+
+/* URL項目 */
+.url-item {
+  background: #333333;
+  border-radius: 8px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: background 0.2s;
+}
+
+.url-item:hover {
+  background: #3a3a3a;
+}
+
+.url-info {
+  flex: 1;
+}
+
+.url-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+
+.url-address {
+  font-size: 13px;
+  color: #888888;
+  word-break: break-all;
+  margin-bottom: 8px;
+}
+
+.url-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.url-status {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.status-pending {
+  background: #555555;
+  color: #cccccc;
+}
+
+.status-indexed {
+  background: #2e7d32;
+  color: #a5d6a7;
+}
+
+.status-error {
+  background: #c62828;
+  color: #ef9a9a;
+}
+
+.url-chunks {
+  color: #888888;
+}
+
+/* URLアクション */
+.url-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.url-action-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.url-action-btn:hover {
+  opacity: 0.8;
+}
+
+.index-btn {
+  background: #2196F3;
+  color: white;
+}
+
+.delete-btn {
+  background: #f44336;
+  color: white;
+}
+
+/* プログレスバー */
+.url-progress {
+  margin-top: 10px;
+}
+
+.url-progress.hidden {
+  display: none;
+}
+
+.progress-bar {
+  height: 6px;
+  background: #222222;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4CAF50, #45a049);
+  transition: width 0.3s;
+}
+
+.progress-text {
+  font-size: 11px;
+  color: #888888;
+  text-align: center;
+}
