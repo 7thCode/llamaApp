@@ -36,7 +36,12 @@
       "mcp__serena__search_for_pattern",
       "mcp__serena__activate_project",
       "Bash(npm run build:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "mcp__serena__get_current_config",
+      "mcp__serena__list_memories",
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(npm run build:dir:*)",
+      "Bash(npx asar:*)"
     ],
     "deny": [],
     "ask": []

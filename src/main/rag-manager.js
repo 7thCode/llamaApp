@@ -6,6 +6,7 @@
 const { v4: uuidv4 } = require('uuid');
 const DBManager = require('./db-manager');
 const WebFetcher = require('./web-fetcher');
+const FileFetcher = require('./file-fetcher');
 const ChunkProcessor = require('./chunk-processor');
 
 class RagManager {
@@ -13,6 +14,7 @@ class RagManager {
     this.mainWindow = mainWindow;
     this.db = new DBManager();
     this.fetcher = new WebFetcher();
+    this.fileFetcher = new FileFetcher();
     this.processor = new ChunkProcessor();
     this.ragEnabled = false;
   }
@@ -60,6 +62,94 @@ class RagManager {
    */
   listUrls() {
     return this.db.listUrls();
+  }
+
+  /**
+   * ファイルを追加
+   * @param {string} filePath - 追加するファイルパス
+   * @returns {object} ページ情報
+   */
+  addFile(filePath) {
+    // ファイル妥当性チェック
+    if (!this.fileFetcher.isValidFile(filePath)) {
+      throw new Error('Invalid file format or file not found');
+    }
+
+    // 重複チェック
+    const existing = this.db.listUrls().find(page => page.url === filePath);
+    if (existing) {
+      throw new Error('File already exists');
+    }
+
+    const id = uuidv4();
+    return this.db.addUrl(id, filePath);
+  }
+
+  /**
+   * ファイルをインデックス化
+   * @param {string} id - ページID
+   */
+  async indexFile(id) {
+    try {
+      // ページ情報取得
+      const pages = this.db.listUrls();
+      const page = pages.find(p => p.id === id);
+
+      if (!page) {
+        throw new Error('Page not found');
+      }
+
+      // プログレス通知
+      this.sendProgress(id, 0, 'reading');
+
+      // ファイル読み込み
+      const { title, text } = await this.fileFetcher.fetchAndExtract(page.url);
+
+      // プログレス通知
+      this.sendProgress(id, 30, 'chunking');
+
+      // チャンク分割
+      const chunks = this.processor.splitIntoChunks(text);
+
+      if (chunks.length === 0) {
+        throw new Error('No content found in file');
+      }
+
+      // プログレス通知
+      this.sendProgress(id, 60, 'indexing');
+
+      // データベースに保存
+      this.db.updatePage(id, { title });
+      this.db.saveChunks(id, chunks);
+
+      // プログレス通知
+      this.sendProgress(id, 100, 'completed');
+
+      // 完了通知
+      const { IPC_CHANNELS } = require('../shared/constants');
+      this.mainWindow.webContents.send(IPC_CHANNELS.RAG_INDEX_COMPLETE, {
+        pageId: id,
+        chunkCount: chunks.length,
+        title,
+      });
+
+      console.log(`Indexed file ${page.url}: ${chunks.length} chunks`);
+      return { success: true, chunkCount: chunks.length };
+    } catch (error) {
+      console.error(`Failed to index ${id}:`, error);
+
+      // エラー状態を更新
+      this.db.updatePage(id, { status: 'error' });
+
+      // エラー通知
+      const { IPC_CHANNELS } = require('../shared/constants');
+      this.mainWindow.webContents.send(IPC_CHANNELS.RAG_INDEX_ERROR, {
+        pageId: id,
+        error: error.message,
+      });
+
+      throw error;
+    }
   }
 
   /**

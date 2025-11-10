@@ -332,6 +332,32 @@ function setupIpcHandlers() {
     }
   });
 
+  // ファイル追加
+  ipcMain.handle(IPC_CHANNELS.RAG_ADD_FILE, async (event, { filePath }) => {
+    try {
+      if (!ragManager) {
+        throw new Error('RAG Manager not initialized');
+      }
+      return ragManager.addFile(filePath);
+    } catch (error) {
+      console.error('Failed to add file:', error);
+      throw error;
+    }
+  });
+
+  // ファイルインデックス化
+  ipcMain.handle(IPC_CHANNELS.RAG_INDEX_FILE, async (event, { id }) => {
+    try {
+      if (!ragManager) {
+        throw new Error('RAG Manager not initialized');
+      }
+      return await ragManager.indexFile(id);
+    } catch (error) {
+      console.error('Failed to index file:', error);
+      throw error;
+    }
+  });
+
   // 検索
   ipcMain.handle(IPC_CHANNELS.RAG_SEARCH, async (event, { query, limit }) => {
     try {

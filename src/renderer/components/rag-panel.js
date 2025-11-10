@@ -57,6 +57,19 @@ class RagPanel {
               <button id="add-url-btn" class="add-url-btn">追加</button>
             </div>
 
+            <!-- ファイル追加フォーム -->
+            <div class="file-add-section">
+              <input
+                type="file"
+                id="file-input"
+                class="file-input-hidden"
+                accept=".txt,.md,.markdown"
+                style="display: none;"
+              >
+              <button id="select-file-btn" class="select-file-btn">📄 ファイルを選択</button>
+              <span class="file-format-hint">TXT, MD対応</span>
+            </div>
+
             <!-- URL一覧 -->
             <div class="url-list-section">
               <h3>登録済みURL</h3>
@@ -97,6 +110,14 @@ class RagPanel {
       if (e.key === 'Enter') {
         this.addUrl();
       }
+    });
+
+    // ファイル追加
+    document.getElementById('select-file-btn').addEventListener('click', () => {
+      document.getElementById('file-input').click();
+    });
+    document.getElementById('file-input').addEventListener('change', (e) => {
+      this.handleFileSelection(e);
     });
   }
 
@@ -257,6 +278,40 @@ class RagPanel {
       await this.loadUrls();
     } catch (error) {
       alert(`URLの追加に失敗しました: ${error.message}`);
+    }
+  }
+
+  /**
+   * ファイル選択を処理
+   */
+  async handleFileSelection(event) {
+    const file = event.target.files[0];
+    if (!file) {
+      return;
+    }
+
+    // ファイルパスを取得（Electronの場合）
+    const filePath = file.path;
+    if (!filePath) {
+      alert('ファイルパスを取得できませんでした');
+      return;
+    }
+
+    try {
+      // ファイルを追加
+      const result = await window.llamaAPI.addFile(filePath);
+
+      // UI更新
+      await this.loadUrls();
+
+      // 自動的にインデックス化を開始
+      await window.llamaAPI.indexFile(result.id);
+
+      // ファイル入力をリセット
+      event.target.value = '';
+    } catch (error) {
+      alert(`ファイルの追加に失敗しました: ${error.message}`);
+      event.target.value = '';
     }
   }
 

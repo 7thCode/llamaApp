@@ -40,6 +40,8 @@ const IPC_CHANNELS = {
   RAG_REMOVE_URL: 'rag:removeUrl',
   RAG_LIST_URLS: 'rag:listUrls',
   RAG_INDEX_URL: 'rag:indexUrl',
+  RAG_ADD_FILE: 'rag:addFile',
+  RAG_INDEX_FILE: 'rag:indexFile',
   RAG_SEARCH: 'rag:search',
   RAG_TOGGLE: 'rag:toggle',
   RAG_GET_STATUS: 'rag:getStatus',
@@ -127,6 +129,12 @@ contextBridge.exposeInMainWorld('llamaAPI', {
 
   indexUrl: (id) =>
     ipcRenderer.invoke(IPC_CHANNELS.RAG_INDEX_URL, { id }),
+
+  addFile: (filePath) =>
+    ipcRenderer.invoke(IPC_CHANNELS.RAG_ADD_FILE, { filePath }),
+
+  indexFile: (id) =>
+    ipcRenderer.invoke(IPC_CHANNELS.RAG_INDEX_FILE, { id }),
 
   search: (query, limit) =>
     ipcRenderer.invoke(IPC_CHANNELS.RAG_SEARCH, { query, limit }),

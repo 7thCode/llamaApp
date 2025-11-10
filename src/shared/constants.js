@@ -66,6 +66,8 @@ const IPC_CHANNELS = {
   RAG_REMOVE_URL: 'rag:removeUrl',
   RAG_LIST_URLS: 'rag:listUrls',
   RAG_INDEX_URL: 'rag:indexUrl',
+  RAG_ADD_FILE: 'rag:addFile',
+  RAG_INDEX_FILE: 'rag:indexFile',
   RAG_SEARCH: 'rag:search',
   RAG_TOGGLE: 'rag:toggle',
   RAG_GET_STATUS: 'rag:getStatus',
