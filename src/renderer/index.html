@@ -3,13 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; script-src 'self' https://cdnjs.cloudflare.com">
   <title>LlamaApp - Local LLM Chat</title>
   <link rel="stylesheet" href="styles/main.css">
   <link rel="stylesheet" href="styles/chat.css">
   <link rel="stylesheet" href="styles/model-store.css">
   <link rel="stylesheet" href="styles/rag-panel.css">
   <link rel="stylesheet" href="styles/agent/agent-indicator.css">
+  <!-- Syntax highlighting theme -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
 </head>
 <body>
   <div id="app">
@@ -83,6 +85,11 @@
     </div>
   </div>
 
+  <!-- Markdown rendering libraries from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.0.0/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <!-- Markdown rendering wrapper -->
+  <script src="components/markdown.js"></script>
   <script src="components/agent/agent-indicator.js"></script>
   <script src="components/model-store.js"></script>
   <script src="components/rag-panel.js"></script>

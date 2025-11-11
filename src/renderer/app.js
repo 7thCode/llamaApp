@@ -2,6 +2,10 @@
  * レンダラープロセス - UIロジック
  */
 
+// マークダウンユーティリティのインポート
+// markdown.jsはHTMLファイル内でscriptタグで読み込まれているため、
+// markdownToHtml関数がグローバルに利用可能
+
 // UI要素の取得
 const modelSelect = document.getElementById('model-select');
 const addModelBtn = document.getElementById('add-model-btn');
@@ -21,6 +25,7 @@ let currentModel = null;
 let isGenerating = false;
 let currentConversationId = 'default';
 let streamingMessage = null;
+let streamingContent = ''; // ストリーミング中のマークダウンコンテンツを蓄積
 let agentEnabled = false;
 
 /**
@@ -219,6 +224,9 @@ async function handleSend() {
     sendBtn.disabled = true;
     setStatus('生成中...');
 
+    // ストリーミング用の状態をリセット
+    streamingContent = '';
+
     // アシスタントメッセージを準備
     streamingMessage = addMessage('assistant', '', true);
 
@@ -238,8 +246,12 @@ function handleToken(data) {
   if (data.conversationId !== currentConversationId) return;
 
   if (streamingMessage) {
+    // トークンを蓄積
+    streamingContent += data.token;
+
+    // マークダウンレンダリングして再描画
     const textEl = streamingMessage.querySelector('.message-text');
-    textEl.textContent += data.token;
+    textEl.innerHTML = markdownToHtml(streamingContent);
     scrollToBottom();
   }
 }
@@ -281,6 +293,7 @@ function finishGeneration() {
   sendBtn.disabled = false;
   chatInput.focus();
   streamingMessage = null;
+  streamingContent = '';
 }
 
 /**
@@ -303,7 +316,13 @@ function addMessage(role, content, streaming = false) {
 
   const textDiv = document.createElement('div');
   textDiv.className = 'message-text' + (streaming ? ' streaming' : '');
-  textDiv.textContent = content;
+
+  // AI応答にはマークダウンレンダリングを適用
+  if (role === 'assistant' && content) {
+    textDiv.innerHTML = markdownToHtml(content);
+  } else {
+    textDiv.textContent = content;
+  }
 
   contentDiv.appendChild(roleDiv);
   contentDiv.appendChild(textDiv);
