@@ -120,12 +120,35 @@ button:disabled {
   border-radius: 50%;
 }
 
-#settings-btn {
+#settings-btn,
+#model-store-btn,
+#agent-btn,
+#rag-btn {
   width: 32px;
   height: 32px;
   padding: 0;
   font-size: 16px;
   border-radius: 50%;
+  background-color: var(--bg-tertiary);
+  transition: all 0.2s;
+}
+
+#settings-btn:hover,
+#model-store-btn:hover,
+#agent-btn:hover,
+#rag-btn:hover {
+  background-color: var(--accent);
+}
+
+#agent-btn.active,
+#rag-btn.active {
+  background-color: var(--success);
+  box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+}
+
+#agent-btn.active:hover,
+#rag-btn.active:hover {
+  background-color: #45a049;
 }
 
 /* メインコンテンツ */

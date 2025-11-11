@@ -48,6 +48,16 @@ const IPC_CHANNELS = {
   RAG_INDEX_PROGRESS: 'rag:indexProgress',
   RAG_INDEX_COMPLETE: 'rag:indexComplete',
   RAG_INDEX_ERROR: 'rag:indexError',
+
+  // Agent管理
+  AGENT_EXECUTE_TOOL: 'agent:executeTool',
+  AGENT_GET_TOOLS: 'agent:getTools',
+  AGENT_GET_HISTORY: 'agent:getHistory',
+  AGENT_TOOL_START: 'agent:tool-start',
+  AGENT_TOOL_COMPLETE: 'agent:tool-complete',
+  AGENT_TOOL_ERROR: 'agent:tool-error',
+  AGENT_TOGGLE: 'agent:toggle',
+  AGENT_GET_STATUS: 'agent:getStatus',
 };
 
 // セキュアなAPIをwindow.llamaAPIとして公開
@@ -153,4 +163,29 @@ contextBridge.exposeInMainWorld('llamaAPI', {
 
   onIndexError: (callback) =>
     ipcRenderer.on(IPC_CHANNELS.RAG_INDEX_ERROR, (event, data) => callback(data)),
+
+  // Agent操作
+  executeTool: (tool, args) =>
+    ipcRenderer.invoke(IPC_CHANNELS.AGENT_EXECUTE_TOOL, { tool, arguments: args }),
+
+  getTools: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.AGENT_GET_TOOLS),
+
+  getHistory: (limit) =>
+    ipcRenderer.invoke(IPC_CHANNELS.AGENT_GET_HISTORY, { limit }),
+
+  toggleAgent: (enabled) =>
+    ipcRenderer.invoke(IPC_CHANNELS.AGENT_TOGGLE, { enabled }),
+
+  getAgentStatus: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.AGENT_GET_STATUS),
+
+  onToolStart: (callback) =>
+    ipcRenderer.on(IPC_CHANNELS.AGENT_TOOL_START, (event, data) => callback(data)),
+
+  onToolComplete: (callback) =>
+    ipcRenderer.on(IPC_CHANNELS.AGENT_TOOL_COMPLETE, (event, data) => callback(data)),
+
+  onToolError: (callback) =>
+    ipcRenderer.on(IPC_CHANNELS.AGENT_TOOL_ERROR, (event, data) => callback(data)),
 });

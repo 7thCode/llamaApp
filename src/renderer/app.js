@@ -7,6 +7,8 @@ const modelSelect = document.getElementById('model-select');
 const addModelBtn = document.getElementById('add-model-btn');
 const modelStoreBtn = document.getElementById('model-store-btn');
 const settingsBtn = document.getElementById('settings-btn');
+const agentBtn = document.getElementById('agent-btn');
+const ragBtn = document.getElementById('rag-btn');
 const chatMessages = document.getElementById('chat-messages');
 const chatInput = document.getElementById('chat-input');
 const sendBtn = document.getElementById('send-btn');
@@ -19,6 +21,7 @@ let currentModel = null;
 let isGenerating = false;
 let currentConversationId = 'default';
 let streamingMessage = null;
+let agentEnabled = false;
 
 /**
  * 初期化
@@ -31,6 +34,9 @@ async function initialize() {
 
   // モデルストア初期化
   await modelStore.initialize();
+
+  // Agent状態を読み込み
+  await loadAgentStatus();
 
   // モデル一覧をロード
   await loadModels();
@@ -51,6 +57,9 @@ function setupEventListeners() {
   // モデルストア
   modelStoreBtn.addEventListener('click', handleModelStore);
 
+  // Agentトグル
+  agentBtn.addEventListener('click', handleAgentToggle);
+
   // 送信ボタン
   sendBtn.addEventListener('click', handleSend);
 
@@ -69,6 +78,11 @@ function setupEventListeners() {
   window.llamaAPI.onToken(handleToken);
   window.llamaAPI.onDone(handleDone);
   window.llamaAPI.onError(handleError);
+
+  // Agent IPCイベントリスナー
+  window.llamaAPI.onToolStart(handleToolStart);
+  window.llamaAPI.onToolComplete(handleToolComplete);
+  window.llamaAPI.onToolError(handleToolError);
 }
 
 /**
@@ -358,6 +372,87 @@ function scrollToBottom() {
 function autoResizeTextarea() {
   chatInput.style.height = 'auto';
   chatInput.style.height = chatInput.scrollHeight + 'px';
+}
+
+/**
+ * Agent状態をロード
+ */
+async function loadAgentStatus() {
+  try {
+    const status = await window.llamaAPI.getAgentStatus();
+    agentEnabled = status.enabled;
+    updateAgentButton();
+  } catch (error) {
+    console.error('Failed to load agent status:', error);
+    agentEnabled = false;
+    updateAgentButton();
+  }
+}
+
+/**
+ * Agentトグルハンドラー
+ */
+async function handleAgentToggle() {
+  try {
+    const newStatus = !agentEnabled;
+    const result = await window.llamaAPI.toggleAgent(newStatus);
+
+    if (result.enabled !== undefined) {
+      agentEnabled = result.enabled;
+      updateAgentButton();
+
+      const statusMsg = agentEnabled
+        ? 'Agent機能を有効にしました'
+        : 'Agent機能を無効にしました';
+      setStatus(statusMsg, 'success');
+    }
+  } catch (error) {
+    console.error('Failed to toggle agent:', error);
+    setStatus('Agent機能の切り替えに失敗しました', 'error');
+  }
+}
+
+/**
+ * Agentボタンの表示を更新
+ */
+function updateAgentButton() {
+  if (agentEnabled) {
+    agentBtn.classList.add('active');
+    agentBtn.title = 'Agent (有効) - クリックで無効化';
+  } else {
+    agentBtn.classList.remove('active');
+    agentBtn.title = 'Agent (無効) - クリックで有効化';
+  }
+}
+
+/**
+ * ツール実行開始ハンドラー
+ */
+function handleToolStart(data) {
+  console.log('Tool started:', data);
+  if (window.agentIndicator) {
+    window.agentIndicator.show(data.tool, data.arguments);
+  }
+}
+
+/**
+ * ツール実行完了ハンドラー
+ */
+function handleToolComplete(data) {
+  console.log('Tool completed:', data);
+  if (window.agentIndicator) {
+    window.agentIndicator.complete(data.tool, data.result);
+  }
+}
+
+/**
+ * ツール実行エラーハンドラー
+ */
+function handleToolError(data) {
+  console.error('Tool error:', data);
+  if (window.agentIndicator) {
+    window.agentIndicator.error(data.tool, data.error);
+  }
 }
 
 // アプリ初期化

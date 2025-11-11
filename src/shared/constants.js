@@ -74,6 +74,16 @@ const IPC_CHANNELS = {
   RAG_INDEX_PROGRESS: 'rag:indexProgress',
   RAG_INDEX_COMPLETE: 'rag:indexComplete',
   RAG_INDEX_ERROR: 'rag:indexError',
+
+  // Agent管理
+  AGENT_EXECUTE_TOOL: 'agent:executeTool',
+  AGENT_GET_TOOLS: 'agent:getTools',
+  AGENT_GET_HISTORY: 'agent:getHistory',
+  AGENT_TOOL_START: 'agent:tool-start',
+  AGENT_TOOL_COMPLETE: 'agent:tool-complete',
+  AGENT_TOOL_ERROR: 'agent:tool-error',
+  AGENT_TOGGLE: 'agent:toggle',
+  AGENT_GET_STATUS: 'agent:getStatus',
 };
 
 // デフォルト設定

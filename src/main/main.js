@@ -9,6 +9,7 @@ const LlamaManager = require('./llama-manager');
 const ModelManager = require('./model-manager');
 const ModelDownloader = require('./model-downloader');
 const RagManager = require('./rag-manager');
+const AgentController = require('./agent/agent-controller');
 const { IPC_CHANNELS } = require('../shared/constants');
 
 let mainWindow;
@@ -16,6 +17,7 @@ let llamaManager;
 let modelManager;
 let modelDownloader;
 let ragManager;
+let agentController;
 
 /**
  * メインウィンドウを作成
@@ -87,6 +89,22 @@ async function initializeApp() {
 }
 
 /**
+ * Agent初期化（ウィンドウ作成後）
+ */
+function initializeAgent() {
+  try {
+    agentController = new AgentController(mainWindow);
+    // LlamaManagerにエージェント機能を統合
+    llamaManager.enableAgent(agentController);
+    console.log('Agent Controller initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize Agent Controller:', error);
+    console.error('Agent features will be unavailable');
+    agentController = null;
+  }
+}
+
+/**
  * RAG初期化（ウィンドウ作成後）
  */
 function initializeRag() {
@@ -118,11 +136,20 @@ function setupIpcHandlers() {
         enhancedPrompt = await ragManager.augmentPrompt(prompt, prompt);
       }
 
-      const fullPrompt = systemPrompt
-        ? `${systemPrompt}\n\nUser: ${enhancedPrompt}\nAssistant:`
-        : enhancedPrompt;
+      // エージェント有効時はツール定義を含むシステムプロンプトを構築
+      let finalSystemPrompt = systemPrompt || 'You are a helpful assistant.';
+      if (llamaManager.isAgentEnabled()) {
+        finalSystemPrompt = llamaManager._buildSystemPromptWithTools(finalSystemPrompt);
+      }
 
-      const result = await llamaManager.generate(
+      const fullPrompt = `${finalSystemPrompt}\n\nUser: ${enhancedPrompt}\nAssistant:`;
+
+      // エージェント有効時はgenerateWithAgent()を使用
+      const generateMethod = llamaManager.isAgentEnabled()
+        ? llamaManager.generateWithAgent.bind(llamaManager)
+        : llamaManager.generate.bind(llamaManager);
+
+      const result = await generateMethod(
         fullPrompt,
         (token) => {
           // ストリーミングトークンをレンダラーに送信
@@ -397,12 +424,97 @@ function setupIpcHandlers() {
       throw error;
     }
   });
+
+  // === Agent管理 ===
+
+  // Agent有効/無効切り替え
+  ipcMain.handle(IPC_CHANNELS.AGENT_TOGGLE, async (event, { enabled }) => {
+    try {
+      if (!llamaManager) {
+        throw new Error('Llama Manager not initialized');
+      }
+
+      if (enabled) {
+        if (!agentController) {
+          throw new Error('Agent Controller not initialized');
+        }
+        llamaManager.enableAgent(agentController);
+      } else {
+        llamaManager.disableAgent();
+      }
+
+      return { success: true, enabled };
+    } catch (error) {
+      console.error('Failed to toggle agent:', error);
+      throw error;
+    }
+  });
+
+  // Agent状態取得
+  ipcMain.handle(IPC_CHANNELS.AGENT_GET_STATUS, async () => {
+    try {
+      if (!llamaManager) {
+        throw new Error('Llama Manager not initialized');
+      }
+
+      return {
+        enabled: llamaManager.isAgentEnabled(),
+        available: agentController !== null
+      };
+    } catch (error) {
+      console.error('Failed to get agent status:', error);
+      throw error;
+    }
+  });
+
+  // ツール定義取得
+  ipcMain.handle(IPC_CHANNELS.AGENT_GET_TOOLS, async () => {
+    try {
+      if (!agentController) {
+        throw new Error('Agent Controller not initialized');
+      }
+
+      return agentController.getToolDefinitions();
+    } catch (error) {
+      console.error('Failed to get tools:', error);
+      throw error;
+    }
+  });
+
+  // 実行履歴取得
+  ipcMain.handle(IPC_CHANNELS.AGENT_GET_HISTORY, async (event, { limit }) => {
+    try {
+      if (!agentController) {
+        throw new Error('Agent Controller not initialized');
+      }
+
+      return agentController.getExecutionHistory(limit || 50);
+    } catch (error) {
+      console.error('Failed to get execution history:', error);
+      throw error;
+    }
+  });
+
+  // ツール直接実行（デバッグ用）
+  ipcMain.handle(IPC_CHANNELS.AGENT_EXECUTE_TOOL, async (event, { tool, arguments: args }) => {
+    try {
+      if (!agentController) {
+        throw new Error('Agent Controller not initialized');
+      }
+
+      return await agentController.executeToolCall({ tool, arguments: args });
+    } catch (error) {
+      console.error('Failed to execute tool:', error);
+      throw error;
+    }
+  });
 }
 
 // アプリケーション起動
 app.whenReady().then(async () => {
   await initializeApp();
   createWindow();
+  initializeAgent(); // ウィンドウ作成後にAgent初期化
   initializeRag(); // ウィンドウ作成後にRAG初期化
   setupIpcHandlers();
 });
@@ -418,6 +530,7 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
+    initializeAgent(); // ウィンドウ再作成時にAgentも再初期化
     initializeRag(); // ウィンドウ再作成時にRAGも再初期化
   }
 });

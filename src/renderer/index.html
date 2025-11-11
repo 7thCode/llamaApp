@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="styles/chat.css">
   <link rel="stylesheet" href="styles/model-store.css">
   <link rel="stylesheet" href="styles/rag-panel.css">
+  <link rel="stylesheet" href="styles/agent/agent-indicator.css">
 </head>
 <body>
   <div id="app">
@@ -27,6 +28,7 @@
         </div>
       </div>
       <div class="header-right">
+        <button id="agent-btn" title="Agent (ローカル操作)" class="agent-toggle">🤖</button>
         <button id="rag-btn" title="RAG - Web Knowledge">🔍</button>
         <button id="model-store-btn" title="モデルストア">🏪</button>
         <button id="settings-btn" title="設定">⚙️</button>
@@ -81,6 +83,7 @@
     </div>
   </div>
 
+  <script src="components/agent/agent-indicator.js"></script>
   <script src="components/model-store.js"></script>
   <script src="components/rag-panel.js"></script>
   <script src="app.js"></script>

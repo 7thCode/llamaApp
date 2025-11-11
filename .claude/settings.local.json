@@ -41,7 +41,10 @@
       "mcp__serena__list_memories",
       "mcp__sequential-thinking__sequentialthinking",
       "Bash(npm run build:dir:*)",
-      "Bash(npx asar:*)"
+      "Bash(npx asar:*)",
+      "Bash(xargs:*)",
+      "mcp__serena__find_symbol",
+      "Bash(killall:*)"
     ],
     "deny": [],
     "ask": []
