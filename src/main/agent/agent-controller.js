@@ -100,6 +100,18 @@ class AgentController {
         },
         handler: this._analyzeCsv.bind(this)
       },
+
+      // === コード実行ツール ===
+      execute_code: {
+        description: 'Execute Python or Bash code with safety restrictions (30s timeout, ~/Documents working directory)',
+        parameters: {
+          language: { type: 'string', description: 'Language to execute (python or bash)' },
+          code: { type: 'string', description: 'Code to execute' },
+          workingDir: { type: 'string', optional: true, description: 'Working directory (defaults to ~/Documents). Use ~ for home directory.' },
+          timeout: { type: 'number', optional: true, description: 'Timeout in seconds (default 30, max 60)' }
+        },
+        handler: this._executeCode.bind(this)
+      },
     };
   }
 
@@ -513,6 +525,106 @@ class AgentController {
       sample: rows.slice(0, 5),
       preview: rows
     };
+  }
+
+  // ==================== コード実行ツール ====================
+
+  /**
+   * コード実行
+   */
+  async _executeCode(args) {
+    const { language, code, workingDir, timeout = 30 } = args;
+
+    // 言語検証
+    if (!['python', 'bash'].includes(language)) {
+      throw new Error(`Unsupported language: ${language}. Only python and bash are supported.`);
+    }
+
+    // タイムアウト検証（最大60秒）
+    const maxTimeout = 60;
+    const safeTimeout = Math.min(timeout, maxTimeout) * 1000;
+
+    // 作業ディレクトリの解決と検証
+    const defaultWorkDir = path.join(os.homedir(), 'Documents');
+    const actualWorkDir = workingDir
+      ? this._resolvePath(workingDir)
+      : defaultWorkDir;
+
+    // 作業ディレクトリのセキュリティチェック
+    const dirCheck = await this.permissionManager.validateOperation('execute_code', { path: actualWorkDir });
+    if (!dirCheck.allowed) {
+      throw new Error(dirCheck.reason);
+    }
+
+    let command;
+    let tempFile = null;
+
+    try {
+      if (language === 'python') {
+        // Pythonコードを一時ファイルに書き込み
+        tempFile = path.join(actualWorkDir, `.temp_${Date.now()}.py`);
+        await require('fs').promises.writeFile(tempFile, code, 'utf8');
+        command = `python3 "${tempFile}"`;
+      } else if (language === 'bash') {
+        // Bashコードを直接実行
+        command = code;
+      }
+
+      console.log('Executing code:', { language, workingDir: actualWorkDir, timeout: safeTimeout / 1000 });
+
+      // コード実行
+      const result = await new Promise((resolve, reject) => {
+        const childProcess = exec(command, {
+          cwd: actualWorkDir,
+          timeout: safeTimeout,
+          maxBuffer: 10 * 1024 * 1024, // 10MB
+          env: { ...process.env, PYTHONUNBUFFERED: '1' } // Pythonバッファリング無効化
+        }, (error, stdout, stderr) => {
+          if (error) {
+            if (error.killed) {
+              resolve({
+                success: false,
+                error: `Execution timeout (${timeout}s exceeded)`,
+                stdout: stdout || '',
+                stderr: stderr || '',
+                exitCode: null
+              });
+            } else {
+              resolve({
+                success: false,
+                error: error.message,
+                stdout: stdout || '',
+                stderr: stderr || '',
+                exitCode: error.code || 1
+              });
+            }
+          } else {
+            resolve({
+              success: true,
+              stdout: stdout || '',
+              stderr: stderr || '',
+              exitCode: 0
+            });
+          }
+        });
+      });
+
+      return {
+        language,
+        workingDir: actualWorkDir,
+        timeout: timeout,
+        ...result
+      };
+    } finally {
+      // 一時ファイルを削除
+      if (tempFile) {
+        try {
+          await require('fs').promises.unlink(tempFile);
+        } catch (error) {
+          console.warn('Failed to delete temp file:', error.message);
+        }
+      }
+    }
   }
 
   // ==================== ユーティリティ ====================

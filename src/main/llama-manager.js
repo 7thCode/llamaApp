@@ -21,8 +21,6 @@ class LlamaManager {
     // Agent機能
     this.agentController = null;
     this.agentEnabled = false;
-    this.toolCallBuffer = '';
-    this.isInToolCall = false;
   }
 
   /**
@@ -292,8 +290,6 @@ Remember: ALWAYS use ~/Documents, ~/Desktop, or ~/Downloads for paths!`;
 
     try {
       this.isGenerating = true;
-      this.toolCallBuffer = '';
-      this.isInToolCall = false;
 
       let fullResponse = '';
       let totalTokens = 0;
@@ -306,6 +302,7 @@ Remember: ALWAYS use ~/Documents, ~/Desktop, or ~/Downloads for paths!`;
       while (turn < maxTurns) {
         turn++;
         let turnResponse = '';
+        let turnHasToolCall = false;
 
         // LLM推論実行
         await this.session.prompt(currentPrompt, {
@@ -315,18 +312,16 @@ Remember: ALWAYS use ~/Documents, ~/Desktop, or ~/Downloads for paths!`;
             turnResponse += chunk;
             totalTokens++;
 
-            // ツール呼び出し検出
+            // ツール呼び出し検出（このターン中に一度でも検出されたらフラグを立てる）
             const toolCall = this._detectToolCall(turnResponse);
-
             if (toolCall) {
-              // ツール呼び出しが完了
-              this.isInToolCall = false;
-              // ツール呼び出しはユーザーに表示しない（内部処理）
-            } else {
-              // 通常のトークンはストリーミング
-              if (onToken && !this.isInToolCall) {
-                onToken(chunk);
-              }
+              turnHasToolCall = true;
+            }
+
+            // ツール呼び出しを含むターンではストリーミングしない
+            // （ツール実行後の次のターンでのみストリーミング）
+            if (!turnHasToolCall && onToken) {
+              onToken(chunk);
             }
           },
         });

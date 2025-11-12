@@ -44,7 +44,9 @@
       "Bash(npx asar:*)",
       "Bash(xargs:*)",
       "mcp__serena__find_symbol",
-      "Bash(killall:*)"
+      "Bash(killall:*)",
+      "Bash(npm run build-release:*)",
+      "Bash(npx electron-rebuild:*)"
     ],
     "deny": [],
     "ask": []

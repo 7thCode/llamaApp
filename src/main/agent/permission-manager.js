@@ -94,6 +94,11 @@ class PermissionManager {
         return { allowed: true }; // 読み取り専用のシステム情報は許可
       }
 
+      // コード実行操作
+      if (this._isExecutionOperation(tool)) {
+        return this._validateExecutionAccess(args.path || args.workingDir);
+      }
+
       // 不明な操作は拒否
       return {
         allowed: false,
@@ -232,6 +237,58 @@ class PermissionManager {
       'get_system_info',
     ];
     return systemOps.includes(tool);
+  }
+
+  /**
+   * コード実行操作かどうか判定
+   */
+  _isExecutionOperation(tool) {
+    const execOps = [
+      'execute_code',
+    ];
+    return execOps.includes(tool);
+  }
+
+  /**
+   * コード実行アクセスの検証
+   */
+  _validateExecutionAccess(inputPath) {
+    console.log('_validateExecutionAccess called with:', inputPath);
+
+    // パスが指定されていない場合はデフォルト（~/Documents）を許可
+    if (!inputPath) {
+      return { allowed: true };
+    }
+
+    const resolvedPath = this._resolvePath(inputPath);
+    console.log('Execution permission check:', { inputPath, resolvedPath });
+
+    // ブロックリストチェック（優先）
+    for (const blocked of this.config.blockedDirectories) {
+      if (resolvedPath.startsWith(blocked)) {
+        return {
+          allowed: false,
+          reason: `Code execution in ${blocked} is blocked for security`,
+        };
+      }
+    }
+
+    // ホワイトリストチェック
+    const inWhitelist = this.config.allowedDirectories.some(allowed =>
+      resolvedPath.startsWith(allowed)
+    );
+
+    if (!inWhitelist) {
+      const allowedDirs = this.config.allowedDirectories
+        .map(d => d.replace(os.homedir(), '~'))
+        .join(', ');
+      return {
+        allowed: false,
+        reason: `Code execution denied. Only these directories are allowed: ${allowedDirs}`,
+      };
+    }
+
+    return { allowed: true };
   }
 
   /**
