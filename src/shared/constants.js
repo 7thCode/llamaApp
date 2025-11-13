@@ -84,6 +84,10 @@ const IPC_CHANNELS = {
   AGENT_TOOL_ERROR: 'agent:tool-error',
   AGENT_TOGGLE: 'agent:toggle',
   AGENT_GET_STATUS: 'agent:getStatus',
+
+  // 設定管理
+  SETTINGS_SAVE: 'settings:save',
+  SETTINGS_LOAD: 'settings:load',
 };
 
 // デフォルト設定

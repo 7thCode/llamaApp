@@ -13,6 +13,7 @@ class LlamaManager {
     this.llama = null;
     this.model = null;
     this.context = null;
+    this.contextSequence = null; // コンテキストシーケンスを保存
     this.session = null;
     this.currentModelPath = null;
     this.isGenerating = false;
@@ -21,6 +22,9 @@ class LlamaManager {
     // Agent機能
     this.agentController = null;
     this.agentEnabled = false;
+
+    // システムプロンプト
+    this.currentSystemPrompt = 'You are a helpful assistant.';
   }
 
   /**
@@ -67,9 +71,13 @@ class LlamaManager {
         contextSize: 4096,
       });
 
+      // コンテキストシーケンスを取得して保存
+      this.contextSequence = this.context.getSequence();
+
       // セッション作成 (新API: contextSequence使用)
       this.session = new llamaModule.LlamaChatSession({
-        contextSequence: this.context.getSequence(),
+        contextSequence: this.contextSequence,
+        systemPrompt: this.currentSystemPrompt,
       });
 
       this.currentModelPath = modelPath;
@@ -103,9 +111,13 @@ class LlamaManager {
         console.log('Model disposed');
       }
 
-      // 念のためcontextもクリア
+      // 念のためcontextとcontextSequenceもクリア
       if (this.context) {
         this.context = null;
+      }
+
+      if (this.contextSequence) {
+        this.contextSequence = null;
       }
 
       this.currentModelPath = null;
@@ -436,6 +448,44 @@ Remember: ALWAYS use ~/Documents, ~/Desktop, or ~/Downloads for paths!`;
    */
   isAgentEnabled() {
     return this.agentEnabled;
+  }
+
+  /**
+   * システムプロンプトを設定（セッション再作成が必要）
+   * @param {string} systemPrompt - 新しいシステムプロンプト
+   */
+  async setSystemPrompt(systemPrompt) {
+    this.currentSystemPrompt = systemPrompt || 'You are a helpful assistant.';
+
+    // セッションが存在する場合は、コンテキストとセッションを再作成
+    // （システムプロンプト変更は会話履歴のクリアを伴う）
+    if (this.session && this.context && this.model) {
+      console.log('Recreating context and session with new system prompt');
+
+      // 古いコンテキストをdispose
+      await this.context.dispose();
+
+      // 新しいコンテキストを作成
+      this.context = await this.model.createContext({
+        contextSize: 4096,
+      });
+
+      // 新しいコンテキストシーケンスを取得
+      this.contextSequence = this.context.getSequence();
+
+      // 新しいセッションを作成
+      this.session = new llamaModule.LlamaChatSession({
+        contextSequence: this.contextSequence,
+        systemPrompt: this.currentSystemPrompt,
+      });
+    }
+  }
+
+  /**
+   * 現在のシステムプロンプトを取得
+   */
+  getCurrentSystemPrompt() {
+    return this.currentSystemPrompt;
   }
 }
 

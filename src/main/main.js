@@ -10,7 +10,10 @@ const ModelManager = require('./model-manager');
 const ModelDownloader = require('./model-downloader');
 const RagManager = require('./rag-manager');
 const AgentController = require('./agent/agent-controller');
-const { IPC_CHANNELS } = require('../shared/constants');
+const { IPC_CHANNELS, DB_DIR, DEFAULT_SETTINGS } = require('../shared/constants');
+
+// 設定ファイルのパス
+const SETTINGS_PATH = path.join(DB_DIR, 'settings.json');
 
 let mainWindow;
 let llamaManager;
@@ -130,19 +133,23 @@ function setupIpcHandlers() {
         throw new Error('No model loaded. Please load a model first.');
       }
 
+      // システムプロンプトが指定されている場合は適用
+      if (systemPrompt) {
+        let finalSystemPrompt = systemPrompt;
+
+        // エージェント有効時はツール定義を含むシステムプロンプトを構築
+        if (llamaManager.isAgentEnabled()) {
+          finalSystemPrompt = llamaManager._buildSystemPromptWithTools(systemPrompt);
+        }
+
+        await llamaManager.setSystemPrompt(finalSystemPrompt);
+      }
+
       // RAG拡張プロンプト生成
       let enhancedPrompt = prompt;
       if (ragManager) {
         enhancedPrompt = await ragManager.augmentPrompt(prompt, prompt);
       }
-
-      // エージェント有効時はツール定義を含むシステムプロンプトを構築
-      let finalSystemPrompt = systemPrompt || 'You are a helpful assistant.';
-      if (llamaManager.isAgentEnabled()) {
-        finalSystemPrompt = llamaManager._buildSystemPromptWithTools(finalSystemPrompt);
-      }
-
-      const fullPrompt = `${finalSystemPrompt}\n\nUser: ${enhancedPrompt}\nAssistant:`;
 
       // エージェント有効時はgenerateWithAgent()を使用
       const generateMethod = llamaManager.isAgentEnabled()
@@ -150,7 +157,7 @@ function setupIpcHandlers() {
         : llamaManager.generate.bind(llamaManager);
 
       const result = await generateMethod(
-        fullPrompt,
+        enhancedPrompt,
         (token) => {
           // ストリーミングトークンをレンダラーに送信
           mainWindow.webContents.send(IPC_CHANNELS.LLAMA_TOKEN, {
@@ -196,6 +203,21 @@ function setupIpcHandlers() {
   ipcMain.handle(IPC_CHANNELS.MODEL_SWITCH, async (event, { modelPath }) => {
     try {
       const result = await llamaManager.loadModel(modelPath);
+
+      // モデルロード後、保存された設定からシステムプロンプトを適用
+      try {
+        await fs.access(SETTINGS_PATH);
+        const data = await fs.readFile(SETTINGS_PATH, 'utf-8');
+        const settings = JSON.parse(data);
+        if (settings.systemPrompt) {
+          await llamaManager.setSystemPrompt(settings.systemPrompt);
+          console.log('Applied saved system prompt after model load');
+        }
+      } catch (error) {
+        // 設定ファイルがない場合はデフォルトのシステムプロンプトを使用
+        console.log('No saved settings, using default system prompt');
+      }
+
       return result;
     } catch (error) {
       console.error('Failed to switch model:', error);
@@ -506,6 +528,59 @@ function setupIpcHandlers() {
     } catch (error) {
       console.error('Failed to execute tool:', error);
       throw error;
+    }
+  });
+
+  // === 設定管理 ===
+
+  // 設定を保存
+  ipcMain.handle(IPC_CHANNELS.SETTINGS_SAVE, async (event, settings) => {
+    try {
+      // DB_DIRが存在しない場合は作成
+      await fs.mkdir(DB_DIR, { recursive: true });
+
+      // 設定をJSON形式で保存
+      await fs.writeFile(SETTINGS_PATH, JSON.stringify(settings, null, 2), 'utf-8');
+      console.log('Settings saved:', settings);
+
+      // システムプロンプトが変更された場合、LlamaManagerに適用
+      if (settings.systemPrompt && llamaManager.isModelLoaded()) {
+        await llamaManager.setSystemPrompt(settings.systemPrompt);
+        console.log('System prompt updated in LlamaManager');
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      throw error;
+    }
+  });
+
+  // 設定を読み込み
+  ipcMain.handle(IPC_CHANNELS.SETTINGS_LOAD, async () => {
+    try {
+      // 設定ファイルが存在しない場合はデフォルト設定を返す
+      try {
+        await fs.access(SETTINGS_PATH);
+      } catch {
+        console.log('Settings file not found, using defaults');
+        return DEFAULT_SETTINGS;
+      }
+
+      // 設定ファイルを読み込み
+      const data = await fs.readFile(SETTINGS_PATH, 'utf-8');
+      const settings = JSON.parse(data);
+      console.log('Settings loaded:', settings);
+
+      // デフォルト値とマージ（新しい設定項目が追加された場合に対応）
+      return {
+        ...DEFAULT_SETTINGS,
+        ...settings,
+      };
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+      // エラーの場合はデフォルト設定を返す
+      return DEFAULT_SETTINGS;
     }
   });
 }

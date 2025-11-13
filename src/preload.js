@@ -58,6 +58,10 @@ const IPC_CHANNELS = {
   AGENT_TOOL_ERROR: 'agent:tool-error',
   AGENT_TOGGLE: 'agent:toggle',
   AGENT_GET_STATUS: 'agent:getStatus',
+
+  // 設定管理
+  SETTINGS_SAVE: 'settings:save',
+  SETTINGS_LOAD: 'settings:load',
 };
 
 // セキュアなAPIをwindow.llamaAPIとして公開
@@ -188,4 +192,14 @@ contextBridge.exposeInMainWorld('llamaAPI', {
 
   onToolError: (callback) =>
     ipcRenderer.on(IPC_CHANNELS.AGENT_TOOL_ERROR, (event, data) => callback(data)),
+});
+
+// 設定API
+contextBridge.exposeInMainWorld('electronAPI', {
+  settings: {
+    save: (settings) =>
+      ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SAVE, settings),
+    load: () =>
+      ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_LOAD),
+  },
 });

@@ -27,6 +27,11 @@ let currentConversationId = 'default';
 let streamingMessage = null;
 let streamingContent = ''; // ストリーミング中のマークダウンコンテンツを蓄積
 let agentEnabled = false;
+let currentSettings = {
+  systemPrompt: '',
+  temperature: 0.7,
+  maxTokens: 2048,
+};
 
 /**
  * 初期化
@@ -36,6 +41,9 @@ async function initialize() {
 
   // イベントリスナー設定
   setupEventListeners();
+
+  // 設定を読み込み
+  await loadSettings();
 
   // モデルストア初期化
   await modelStore.initialize();
@@ -230,8 +238,9 @@ async function handleSend() {
     // アシスタントメッセージを準備
     streamingMessage = addMessage('assistant', '', true);
 
-    // 生成開始
-    await window.llamaAPI.generate(message, null, currentConversationId);
+    // 生成開始（設定からシステムプロンプトを取得）
+    const systemPrompt = currentSettings.systemPrompt || null;
+    await window.llamaAPI.generate(message, systemPrompt, currentConversationId);
   } catch (error) {
     console.error('Generation failed:', error);
     setStatus('生成に失敗しました: ' + error.message, 'error');
@@ -391,6 +400,25 @@ function scrollToBottom() {
 function autoResizeTextarea() {
   chatInput.style.height = 'auto';
   chatInput.style.height = chatInput.scrollHeight + 'px';
+}
+
+/**
+ * 設定をロード
+ */
+async function loadSettings() {
+  try {
+    const settings = await window.electronAPI.settings.load();
+    currentSettings = settings;
+    console.log('Settings loaded:', currentSettings);
+  } catch (error) {
+    console.error('Failed to load settings:', error);
+    // エラーの場合はデフォルト設定を使用
+    currentSettings = {
+      systemPrompt: '',
+      temperature: 0.7,
+      maxTokens: 2048,
+    };
+  }
 }
 
 /**
