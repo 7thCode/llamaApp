@@ -324,10 +324,15 @@ Remember: ALWAYS use ~/Documents, ~/Desktop, or ~/Downloads for paths!`;
             turnResponse += chunk;
             totalTokens++;
 
-            // ツール呼び出し検出（このターン中に一度でも検出されたらフラグを立てる）
-            const toolCall = this._detectToolCall(turnResponse);
-            if (toolCall) {
-              turnHasToolCall = true;
+            // ツール呼び出しの開始を検出（JSONコードブロックまたは直接のJSONオブジェクト）
+            if (!turnHasToolCall) {
+              // JSONコードブロックの開始を検出
+              if (turnResponse.includes('```json') ||
+                  // 直接のJSONオブジェクトの開始を検出（改行後に { "tool" が出現）
+                  /\n\s*\{\s*"tool"\s*:/i.test(turnResponse)) {
+                turnHasToolCall = true;
+                console.log('Tool call pattern detected, suppressing streaming');
+              }
             }
 
             // ツール呼び出しを含むターンではストリーミングしない
