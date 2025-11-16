@@ -62,7 +62,7 @@ function createWindow() {
         console.error('Error during window close cleanup:', error);
       } finally {
         mainWindow.destroy();
-        app.quit();
+        process.exit(0);
       }
     }
   });
@@ -632,8 +632,8 @@ app.on('before-quit', async (event) => {
     } catch (error) {
       console.error('Error during cleanup:', error);
     } finally {
-      // クリーンアップ完了後に終了
-      app.quit();
+      // クリーンアップ完了後、process.exit()で確実に終了
+      process.exit(0);
     }
   }
 });
