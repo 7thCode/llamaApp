@@ -20,6 +20,22 @@ class ModelDownloader {
   }
 
   /**
+   * モデルディレクトリを変更
+   * @param {string} newDir - 新しいモデルディレクトリパス
+   */
+  setModelsDirectory(newDir) {
+    this.modelsDir = newDir;
+  }
+
+  /**
+   * 現在のモデルディレクトリを取得
+   * @returns {string} 現在のモデルディレクトリパス
+   */
+  getModelsDirectory() {
+    return this.modelsDir;
+  }
+
+  /**
    * モデルのダウンロードを開始
    * @param {Object} modelConfig - プリセットモデルの設定
    * @returns {Promise<Object>} ダウンロード結果

@@ -8,8 +8,24 @@ const path = require('path');
 const { MODELS_DIR } = require('../shared/constants');
 
 class ModelManager {
-  constructor() {
-    this.modelsDir = MODELS_DIR;
+  constructor(customModelsDir = null) {
+    this.modelsDir = customModelsDir || MODELS_DIR;
+  }
+
+  /**
+   * モデルディレクトリを変更
+   * @param {string} newDir - 新しいモデルディレクトリパス
+   */
+  setModelsDirectory(newDir) {
+    this.modelsDir = newDir;
+  }
+
+  /**
+   * 現在のモデルディレクトリを取得
+   * @returns {string} 現在のモデルディレクトリパス
+   */
+  getModelsDirectory() {
+    return this.modelsDir;
   }
 
   /**

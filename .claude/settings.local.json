@@ -48,7 +48,8 @@
       "Bash(npm run build-release:*)",
       "Bash(npx electron-rebuild:*)",
       "mcp__serena__read_file",
-      "mcp__serena__replace_regex"
+      "mcp__serena__replace_regex",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []

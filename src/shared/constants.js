@@ -88,6 +88,11 @@ const IPC_CHANNELS = {
   // 設定管理
   SETTINGS_SAVE: 'settings:save',
   SETTINGS_LOAD: 'settings:load',
+
+  // モデルディレクトリ管理
+  MODELS_DIR_SELECT: 'modelsDir:select',
+  MODELS_DIR_GET: 'modelsDir:get',
+  MODELS_DIR_SET: 'modelsDir:set',
 };
 
 // デフォルト設定
@@ -95,6 +100,7 @@ const DEFAULT_SETTINGS = {
   temperature: 0.7,
   maxTokens: 2048,
   systemPrompt: 'You are a helpful assistant.',
+  modelsDirectory: MODELS_DIR, // デフォルトのモデル保存ディレクトリ
 };
 
 module.exports = {

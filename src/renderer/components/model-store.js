@@ -24,6 +24,22 @@ class ModelStore {
 
     // インストール済みモデルを確認
     await this.checkInstalledModels();
+
+    // 現在のモデルディレクトリを取得
+    await this.loadModelsDirectory();
+  }
+
+  /**
+   * 現在のモデルディレクトリを取得
+   */
+  async loadModelsDirectory() {
+    try {
+      const result = await window.electronAPI.modelsDir.get();
+      this.currentModelsDir = result.path;
+      console.log('Current models directory:', this.currentModelsDir);
+    } catch (error) {
+      console.error('Failed to get models directory:', error);
+    }
   }
 
   /**
@@ -100,7 +116,12 @@ class ModelStore {
       <div class="model-store-overlay" data-action="close"></div>
       <div class="model-store-container">
         <div class="model-store-header">
-          <h2>🏪 モデルストア</h2>
+          <div class="header-left">
+            <h2>🏪 モデルストア</h2>
+            <button class="models-dir-btn" data-action="change-dir" title="モデル保存先を変更">
+              📁 保存先設定
+            </button>
+          </div>
           <button class="close-btn" data-action="close">×</button>
         </div>
 
@@ -393,6 +414,52 @@ class ModelStore {
     } else if (action === 'delete') {
       const modelId = event.target.dataset.modelId;
       this.deleteModel(modelId);
+    } else if (action === 'change-dir') {
+      this.changeModelsDirectory();
+    }
+  }
+
+  /**
+   * モデル保存ディレクトリを変更
+   */
+  async changeModelsDirectory() {
+    try {
+      // ディレクトリ選択ダイアログを表示
+      const result = await window.electronAPI.modelsDir.select();
+
+      if (result.canceled) {
+        return;
+      }
+
+      const newDir = result.path;
+      console.log('Selected new models directory:', newDir);
+
+      // 確認ダイアログ
+      const confirmed = confirm(
+        `モデル保存ディレクトリを変更しますか？\n\n新しい保存先:\n${newDir}\n\n※既存のモデルは移動されません。新しいディレクトリからモデルを読み込みます。`
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      // ディレクトリを設定
+      await window.electronAPI.modelsDir.set(newDir);
+      this.currentModelsDir = newDir;
+
+      // インストール済みモデルを再確認
+      await this.checkInstalledModels();
+      this.refreshUI();
+
+      // メインのモデルリストを更新
+      if (window.loadModels) {
+        await window.loadModels();
+      }
+
+      alert('モデル保存ディレクトリを変更しました');
+    } catch (error) {
+      console.error('Failed to change models directory:', error);
+      alert(`ディレクトリの変更に失敗しました: ${error.message}`);
     }
   }
 

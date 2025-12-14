@@ -62,6 +62,11 @@ const IPC_CHANNELS = {
   // 設定管理
   SETTINGS_SAVE: 'settings:save',
   SETTINGS_LOAD: 'settings:load',
+
+  // モデルディレクトリ管理
+  MODELS_DIR_SELECT: 'modelsDir:select',
+  MODELS_DIR_GET: 'modelsDir:get',
+  MODELS_DIR_SET: 'modelsDir:set',
 };
 
 // セキュアなAPIをwindow.llamaAPIとして公開
@@ -201,5 +206,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SAVE, settings),
     load: () =>
       ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_LOAD),
+  },
+  modelsDir: {
+    select: () =>
+      ipcRenderer.invoke(IPC_CHANNELS.MODELS_DIR_SELECT),
+    get: () =>
+      ipcRenderer.invoke(IPC_CHANNELS.MODELS_DIR_GET),
+    set: (dirPath) =>
+      ipcRenderer.invoke(IPC_CHANNELS.MODELS_DIR_SET, { dirPath }),
   },
 });

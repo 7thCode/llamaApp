@@ -76,14 +76,26 @@ function createWindow() {
  * アプリケーション初期化
  */
 async function initializeApp() {
-  // LlamaManager、ModelManager、ModelDownloader、RagManagerの初期化
-  llamaManager = new LlamaManager();
-  modelManager = new ModelManager();
-
   try {
+    // 設定ファイルから保存されたモデルディレクトリを読み込み
+    let modelsDirectory = null;
+    try {
+      await fs.access(SETTINGS_PATH);
+      const data = await fs.readFile(SETTINGS_PATH, 'utf-8');
+      const settings = JSON.parse(data);
+      modelsDirectory = settings.modelsDirectory;
+      console.log('Loaded models directory from settings:', modelsDirectory);
+    } catch {
+      console.log('No saved models directory, using default');
+    }
+
+    // LlamaManager、ModelManagerの初期化
+    llamaManager = new LlamaManager();
+    modelManager = new ModelManager(modelsDirectory);
+
     // LlamaManagerの初期化（ES Moduleの動的インポート）
     await llamaManager.initialize();
-    // ModelManagerの初期化
+    // ModelManagerの初期化（ディレクトリ作成）
     await modelManager.initialize();
     console.log('App initialized successfully');
   } catch (error) {
@@ -288,8 +300,8 @@ function setupIpcHandlers() {
 
       // ModelDownloaderの初期化（遅延初期化）
       if (!modelDownloader) {
-        const { MODELS_DIR } = require('../shared/constants');
-        modelDownloader = new ModelDownloader(mainWindow, MODELS_DIR);
+        const modelsDir = modelManager.getModelsDirectory();
+        modelDownloader = new ModelDownloader(mainWindow, modelsDir);
       }
 
       const result = await modelDownloader.downloadModel(modelConfig);
@@ -581,6 +593,72 @@ function setupIpcHandlers() {
       console.error('Failed to load settings:', error);
       // エラーの場合はデフォルト設定を返す
       return DEFAULT_SETTINGS;
+    }
+  });
+
+  // モデルディレクトリ選択ダイアログ
+  ipcMain.handle(IPC_CHANNELS.MODELS_DIR_SELECT, async () => {
+    try {
+      const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'モデル保存ディレクトリを選択',
+        properties: ['openDirectory', 'createDirectory'],
+        message: 'GGUFモデルファイルを保存するディレクトリを選択してください',
+      });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return { canceled: true };
+      }
+
+      return { success: true, path: result.filePaths[0] };
+    } catch (error) {
+      console.error('Failed to select models directory:', error);
+      throw error;
+    }
+  });
+
+  // モデルディレクトリを取得
+  ipcMain.handle(IPC_CHANNELS.MODELS_DIR_GET, async () => {
+    try {
+      return {
+        success: true,
+        path: modelManager.getModelsDirectory(),
+      };
+    } catch (error) {
+      console.error('Failed to get models directory:', error);
+      throw error;
+    }
+  });
+
+  // モデルディレクトリを設定
+  ipcMain.handle(IPC_CHANNELS.MODELS_DIR_SET, async (event, { dirPath }) => {
+    try {
+      // ディレクトリの存在確認
+      await fs.access(dirPath);
+
+      // ModelManagerとModelDownloaderのディレクトリを更新
+      modelManager.setModelsDirectory(dirPath);
+      if (modelDownloader) {
+        modelDownloader.setModelsDirectory(dirPath);
+      }
+
+      // 設定に保存
+      let settings = DEFAULT_SETTINGS;
+      try {
+        const data = await fs.readFile(SETTINGS_PATH, 'utf-8');
+        settings = { ...settings, ...JSON.parse(data) };
+      } catch {
+        // 設定ファイルが存在しない場合はデフォルト値を使用
+      }
+
+      settings.modelsDirectory = dirPath;
+      await fs.mkdir(DB_DIR, { recursive: true });
+      await fs.writeFile(SETTINGS_PATH, JSON.stringify(settings, null, 2), 'utf-8');
+
+      console.log('Models directory updated:', dirPath);
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to set models directory:', error);
+      throw error;
     }
   });
 }
