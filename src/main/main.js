@@ -10,6 +10,7 @@ const ModelManager = require('./model-manager');
 const ModelDownloader = require('./model-downloader');
 const RagManager = require('./rag-manager');
 const AgentController = require('./agent/agent-controller');
+const { searchHuggingFaceModels } = require('./hf-search');
 const { IPC_CHANNELS, DB_DIR, DEFAULT_SETTINGS } = require('../shared/constants');
 
 // 設定ファイルのパス
@@ -661,6 +662,61 @@ function setupIpcHandlers() {
       throw error;
     }
   });
+  // === HuggingFace 検索 ===
+
+  // HFモデル検索
+  ipcMain.handle(IPC_CHANNELS.HF_SEARCH_MODELS, async (event, searchOptions) => {
+    try {
+      // 設定ファイルからHF_TOKENを読み取る
+      let hfToken = '';
+      try {
+        const data = await fs.readFile(SETTINGS_PATH, 'utf-8');
+        const settings = JSON.parse(data);
+        hfToken = settings.hfToken || '';
+      } catch {
+        // 設定ファイルなし
+      }
+
+      const models = await searchHuggingFaceModels({
+        ...searchOptions,
+        hfToken,
+      });
+      return { success: true, models };
+    } catch (error) {
+      console.error('Failed to search HuggingFace models:', error);
+      return { success: false, error: error.message, models: [] };
+    }
+  });
+
+  // HFモデルを直接ダウンロード（URLを模側にダウンロード）
+  ipcMain.handle(IPC_CHANNELS.HF_DOWNLOAD_MODEL, async (event, { hfModel }) => {
+    try {
+      if (!hfModel || !hfModel.downloadUrl) {
+        throw new Error('Invalid model data: missing downloadUrl');
+      }
+
+      // ModelDownloaderの初期化（遅延初期化）
+      if (!modelDownloader) {
+        const modelsDir = modelManager.getModelsDirectory();
+        modelDownloader = new ModelDownloader(mainWindow, modelsDir);
+      }
+
+      // hfModelをプリセットモデル形式に合わせてダウンロード
+      const modelConfig = {
+        id: hfModel.id,
+        name: hfModel.name,
+        downloadUrl: hfModel.downloadUrl,
+        size: hfModel.size || 0,
+      };
+
+      const result = await modelDownloader.downloadModel(modelConfig);
+      return result;
+    } catch (error) {
+      console.error('Failed to download HuggingFace model:', error);
+      throw error;
+    }
+  });
+
 }
 
 // アプリケーション起動

@@ -1,13 +1,20 @@
 /**
  * モデルストアコンポーネント
- * HuggingFaceプリセットモデルの表示とダウンロード
+ * プリセットモデル表示 + HuggingFace検索によるダウンロード
  */
 
 class ModelStore {
   constructor() {
     this.presetModels = [];
+    this.hfModels = [];
     this.downloads = new Map(); // downloadId -> { modelId, progress, speed, eta }
     this.installedModelIds = new Set();
+    this.activeTab = 'preset'; // 'preset' | 'hf'
+    this.hfSearchState = {
+      loading: false,
+      error: null,
+      searched: false,
+    };
   }
 
   /**
@@ -36,7 +43,6 @@ class ModelStore {
     try {
       const result = await window.electronAPI.modelsDir.get();
       this.currentModelsDir = result.path;
-      console.log('Current models directory:', this.currentModelsDir);
     } catch (error) {
       console.error('Failed to get models directory:', error);
     }
@@ -62,11 +68,17 @@ class ModelStore {
       const { models } = await window.llamaAPI.listModels();
       this.installedModelIds.clear();
 
-      // プリセットモデルのIDと一致するものを探す
       for (const model of models) {
         for (const preset of this.presetModels) {
           if (model.id === `${preset.id}.gguf`) {
             this.installedModelIds.add(preset.id);
+          }
+        }
+        // HFモデルのIDも確認
+        for (const hfm of this.hfModels) {
+          const filename = hfm.downloadUrl.split('/').pop();
+          if (model.id === filename) {
+            this.installedModelIds.add(hfm.id);
           }
         }
       }
@@ -87,7 +99,6 @@ class ModelStore {
     const modal = this.createModal();
     document.body.appendChild(modal);
 
-    // モーダル表示アニメーション
     requestAnimationFrame(() => {
       modal.classList.add('visible');
     });
@@ -125,46 +136,100 @@ class ModelStore {
           <button class="close-btn" data-action="close">×</button>
         </div>
 
-        <div class="model-store-filters">
-          <select id="license-filter" data-action="filter">
-            <option value="all">すべてのライセンス</option>
-            <option value="commercial">商用利用可</option>
-            <option value="non-commercial">非商用のみ</option>
-          </select>
-          <select id="memory-filter" data-action="filter">
-            <option value="all">すべてのサイズ</option>
-            <option value="small">小型 (&lt;4GB)</option>
-            <option value="medium">中型 (4-8GB)</option>
-          </select>
+        <div class="model-store-tabs">
+          <button class="tab-btn ${this.activeTab === 'preset' ? 'active' : ''}" data-action="tab" data-tab="preset">
+            📦 プリセット
+          </button>
+          <button class="tab-btn ${this.activeTab === 'hf' ? 'active' : ''}" data-action="tab" data-tab="hf">
+            🤗 HuggingFace 検索
+          </button>
         </div>
 
-        <div class="model-store-list" id="model-store-list">
-          ${this.renderModelList()}
+        <div class="tab-content" id="tab-preset" style="display: ${this.activeTab === 'preset' ? 'flex' : 'none'}; flex-direction: column; height: 100%;">
+          <div class="model-store-filters">
+            <select id="license-filter" data-action="filter">
+              <option value="all">すべてのライセンス</option>
+              <option value="commercial">商用利用可</option>
+              <option value="non-commercial">非商用のみ</option>
+            </select>
+            <select id="memory-filter" data-action="filter">
+              <option value="all">すべてのサイズ</option>
+              <option value="small">小型 (&lt;4GB)</option>
+              <option value="medium">中型 (4-8GB)</option>
+            </select>
+          </div>
+          <div class="model-store-list" id="model-store-list">
+            ${this.renderModelList()}
+          </div>
+        </div>
+
+        <div class="tab-content" id="tab-hf" style="display: ${this.activeTab === 'hf' ? 'flex' : 'none'}; flex-direction: column; height: 100%;">
+          <div class="hf-search-bar">
+            <div class="hf-search-row">
+              <input
+                type="text"
+                id="hf-search-input"
+                class="hf-search-input"
+                placeholder="キーワード検索 (例: japanese, qwen, llama3)"
+              />
+              <select id="hf-sort-select" class="hf-select">
+                <option value="downloads">ダウンロード数順</option>
+                <option value="likes">いいね数順</option>
+                <option value="trending">トレンド順</option>
+                <option value="lastModified">更新日時順</option>
+              </select>
+            </div>
+            <div class="hf-search-row">
+              <input
+                type="text"
+                id="hf-author-input"
+                class="hf-search-input hf-author-input"
+                placeholder="作者で絞り込み (例: bartowski, unsloth)"
+              />
+              <label class="hf-checkbox-label">
+                <input type="checkbox" id="hf-commercial-only" />
+                商用ライセンスのみ
+              </label>
+              <select id="hf-limit-select" class="hf-select hf-limit-select">
+                <option value="10">10件</option>
+                <option value="20" selected>20件</option>
+                <option value="50">50件</option>
+              </select>
+              <button class="btn-hf-search" data-action="hf-search" id="hf-search-btn">
+                🔍 検索
+              </button>
+            </div>
+          </div>
+          <div class="model-store-list" id="hf-model-list">
+            ${this.renderHfModelList()}
+          </div>
         </div>
       </div>
     `;
 
-    // イベント委譲を設定
     modal.addEventListener('click', (e) => this.handleModalClick(e));
     modal.addEventListener('change', (e) => this.handleModalChange(e));
+    modal.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.id === 'hf-search-input') {
+        this.executeHfSearch();
+      }
+    });
 
     return modal;
   }
 
   /**
-   * モデルリストをレンダリング
+   * プリセットモデルリストをレンダリング
    */
   renderModelList(filters = { license: 'all', memory: 'all' }) {
     let filteredModels = this.presetModels;
 
-    // ライセンスフィルター
     if (filters.license === 'commercial') {
       filteredModels = filteredModels.filter(m => m.commercial);
     } else if (filters.license === 'non-commercial') {
       filteredModels = filteredModels.filter(m => !m.commercial);
     }
 
-    // メモリフィルター
     if (filters.memory === 'small') {
       filteredModels = filteredModels.filter(m => m.memoryRequired < 4 * 1024 * 1024 * 1024);
     } else if (filters.memory === 'medium') {
@@ -173,27 +238,103 @@ class ModelStore {
       );
     }
 
-    return filteredModels.map(model => this.renderModelCard(model)).join('');
+    if (filteredModels.length === 0) {
+      return '<div class="empty-state">条件に一致するモデルがありません</div>';
+    }
+
+    return filteredModels.map(model => this.renderModelCard(model, 'preset')).join('');
   }
 
   /**
-   * モデルカードをレンダリング
+   * HFモデルリストをレンダリング
    */
-  renderModelCard(model) {
+  renderHfModelList() {
+    if (this.hfSearchState.loading) {
+      return `
+        <div class="hf-loading">
+          <div class="loading-spinner"></div>
+          <p>HuggingFaceを検索中...</p>
+        </div>
+      `;
+    }
+
+    if (this.hfSearchState.error) {
+      return `
+        <div class="hf-error">
+          <p>⚠️ 検索エラー: ${this.hfSearchState.error}</p>
+          <button class="btn-hf-search" data-action="hf-search">再試行</button>
+        </div>
+      `;
+    }
+
+    if (!this.hfSearchState.searched) {
+      return `
+        <div class="hf-empty-state">
+          <div class="hf-empty-icon">🤗</div>
+          <h3>HuggingFaceからGGUFモデルを検索</h3>
+          <p>キーワードや条件を入力して「検索」をクリックしてください</p>
+          <div class="hf-hint-list">
+            <span class="hint-tag" data-action="hint-search" data-hint="japanese">日本語モデル</span>
+            <span class="hint-tag" data-action="hint-search" data-hint="qwen">Qwen系</span>
+            <span class="hint-tag" data-action="hint-search" data-hint="llama">Llama系</span>
+            <span class="hint-tag" data-action="hint-search" data-hint="mistral">Mistral系</span>
+            <span class="hint-tag" data-action="hint-search" data-hint="code">コード生成</span>
+          </div>
+        </div>
+      `;
+    }
+
+    if (this.hfModels.length === 0) {
+      return '<div class="empty-state">検索結果がありません。条件を変えてお試しください</div>';
+    }
+
+    return this.hfModels.map(model => this.renderModelCard(model, 'hf')).join('');
+  }
+
+  /**
+   * モデルカードをレンダリング (preset / hf 共通)
+   */
+  renderModelCard(model, source) {
     const isInstalled = this.installedModelIds.has(model.id);
     const isDownloading = Array.from(this.downloads.values()).some(d => d.modelId === model.id);
     const downloadInfo = Array.from(this.downloads.entries()).find(([_, d]) => d.modelId === model.id);
 
-    const sizeGB = (model.size / (1024 * 1024 * 1024)).toFixed(1);
-    const memoryGB = (model.memoryRequired / (1024 * 1024 * 1024)).toFixed(0);
-    const commercialBadge = model.commercial ? '<span class="badge commercial">✅ 商用可</span>' : '<span class="badge non-commercial">⚠️ 非商用</span>';
+    const commercialBadge = model.commercial
+      ? '<span class="badge commercial">✅ 商用可</span>'
+      : '<span class="badge non-commercial">⚠️ 非商用</span>';
 
+    // ソース別のスペック表示
+    let specsHtml = '';
+    if (source === 'preset') {
+      const sizeGB = model.size > 0 ? (model.size / (1024 * 1024 * 1024)).toFixed(1) + ' GB' : '—';
+      const memoryGB = model.memoryRequired > 0 ? (model.memoryRequired / (1024 * 1024 * 1024)).toFixed(0) + ' GB RAM' : '—';
+      specsHtml = `
+        <span class="spec">📦 ${sizeGB}</span>
+        <span class="spec">💾 ${memoryGB}</span>
+        <span class="spec">⚙️ ${model.quantization}</span>
+      `;
+    } else {
+      // HFモデル用: ダウンロード数・likes・量子化
+      const dlCount = model.downloads > 0 ? model.downloads.toLocaleString() : '—';
+      const likes = model.likes > 0 ? model.likes.toLocaleString() : '—';
+      specsHtml = `
+        <span class="spec">⬇️ ${dlCount}</span>
+        <span class="spec">❤️ ${likes}</span>
+        <span class="spec">⚙️ ${model.quantization}</span>
+      `;
+    }
+
+    // アクションボタン
     let actionButton = '';
     if (isInstalled) {
       actionButton = `
         <div class="installed-actions">
           <button class="btn-installed" disabled>✓ インストール済み</button>
-          <button class="btn-delete" data-action="delete" data-model-id="${model.id}.gguf" title="このモデルを削除">🗑️ 削除</button>
+          <button class="btn-delete"
+            data-action="${source === 'preset' ? 'delete' : 'delete-hf'}"
+            data-model-id="${source === 'preset' ? model.id + '.gguf' : model.downloadUrl.split('/').pop()}"
+            data-model-name="${model.name}"
+            title="このモデルを削除">🗑️ 削除</button>
         </div>
       `;
     } else if (isDownloading && downloadInfo) {
@@ -214,26 +355,38 @@ class ModelStore {
         </div>
       `;
     } else {
-      actionButton = `<button class="btn-download" data-action="download" data-model-id="${model.id}">ダウンロード</button>`;
+      if (source === 'preset') {
+        actionButton = `<button class="btn-download" data-action="download" data-model-id="${model.id}">⬇️ ダウンロード</button>`;
+      } else {
+        // HF検索モデル: hfModelオブジェクト全体をdata属性にJSONで埋め込む
+        const modelDataEncoded = encodeURIComponent(JSON.stringify(model));
+        actionButton = `<button class="btn-download" data-action="hf-download" data-hf-model="${modelDataEncoded}">⬇️ ダウンロード</button>`;
+      }
     }
+
+    // HFソースバッジ
+    const sourceBadge = source === 'hf'
+      ? '<span class="badge hf-source">🤗 HF</span>'
+      : '';
 
     return `
       <div class="model-card" data-model-id="${model.id}">
         <div class="model-info">
-          <h3>${model.name}</h3>
+          <h3>${model.name} ${sourceBadge}</h3>
           <p class="model-author">by ${model.author}</p>
           <p class="model-description">${model.description}</p>
           <div class="model-specs">
-            <span class="spec">📦 ${sizeGB} GB</span>
-            <span class="spec">💾 ${memoryGB} GB RAM</span>
-            <span class="spec">⚙️ ${model.quantization}</span>
+            ${specsHtml}
           </div>
           <div class="model-tags">
-            ${model.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+            ${(model.tags || []).map(tag => `<span class="tag">${tag}</span>`).join('')}
           </div>
           <div class="model-license">
             ${commercialBadge}
-            <a href="${model.licenseUrl}" target="_blank" class="license-link">${model.license}</a>
+            ${model.licenseUrl
+              ? `<a href="${model.licenseUrl}" target="_blank" class="license-link">${model.license}</a>`
+              : `<span class="license-text">${model.license}</span>`
+            }
           </div>
         </div>
         <div class="model-actions">
@@ -244,7 +397,68 @@ class ModelStore {
   }
 
   /**
-   * フィルターを適用
+   * HuggingFace検索を実行
+   */
+  async executeHfSearch() {
+    const searchInput = document.getElementById('hf-search-input');
+    const sortSelect = document.getElementById('hf-sort-select');
+    const authorInput = document.getElementById('hf-author-input');
+    const commercialOnly = document.getElementById('hf-commercial-only');
+    const limitSelect = document.getElementById('hf-limit-select');
+    const searchBtn = document.getElementById('hf-search-btn');
+
+    const options = {
+      search: searchInput?.value.trim() || '',
+      sort: sortSelect?.value || 'downloads',
+      author: authorInput?.value.trim() || '',
+      commercialOnly: commercialOnly?.checked || false,
+      limit: parseInt(limitSelect?.value || '20', 10),
+    };
+
+    this.hfSearchState.loading = true;
+    this.hfSearchState.error = null;
+    this.hfSearchState.searched = true;
+    this.hfModels = [];
+
+    if (searchBtn) searchBtn.disabled = true;
+
+    this.updateHfList();
+
+    try {
+      const result = await window.llamaAPI.hfSearchModels(options);
+      if (result.success) {
+        this.hfModels = result.models || [];
+        this.hfSearchState.error = null;
+        // インストール済みチェックを更新
+        await this.checkInstalledModels();
+      } else {
+        this.hfSearchState.error = result.error || '不明なエラー';
+      }
+    } catch (error) {
+      this.hfSearchState.error = error.message;
+    } finally {
+      this.hfSearchState.loading = false;
+      if (searchBtn) searchBtn.disabled = false;
+      this.updateHfList();
+    }
+  }
+
+  /**
+   * HFモデルをダウンロード
+   */
+  async startHfDownload(hfModel) {
+    try {
+      console.log('Starting HF download:', hfModel.name);
+      const result = await window.llamaAPI.hfDownloadModel(hfModel);
+      console.log('HF Download started:', result);
+    } catch (error) {
+      console.error('Failed to start HF download:', error);
+      alert(`ダウンロード開始に失敗しました: ${error.message}`);
+    }
+  }
+
+  /**
+   * フィルターを適用 (プリセットタブ)
    */
   applyFilters() {
     const licenseFilter = document.getElementById('license-filter')?.value || 'all';
@@ -260,7 +474,33 @@ class ModelStore {
   }
 
   /**
-   * ダウンロード開始
+   * HFモデルリストを更新
+   */
+  updateHfList() {
+    const listContainer = document.getElementById('hf-model-list');
+    if (listContainer) {
+      listContainer.innerHTML = this.renderHfModelList();
+    }
+  }
+
+  /**
+   * タブを切り替え
+   */
+  switchTab(tab) {
+    this.activeTab = tab;
+
+    // タブボタン
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === tab);
+    });
+
+    // タブコンテンツ
+    document.getElementById('tab-preset').style.display = tab === 'preset' ? 'flex' : 'none';
+    document.getElementById('tab-hf').style.display = tab === 'hf' ? 'flex' : 'none';
+  }
+
+  /**
+   * ダウンロード開始 (プリセット)
    */
   async startDownload(modelId) {
     try {
@@ -288,23 +528,21 @@ class ModelStore {
   /**
    * モデルを削除
    */
-  async deleteModel(modelId) {
-    // 確認ダイアログ
-    const modelName = modelId.replace('.gguf', '');
-    if (!confirm(`「${modelName}」を削除してもよろしいですか？\nこの操作は取り消せません。`)) {
+  async deleteModel(modelId, modelName) {
+    const name = modelName || modelId.replace('.gguf', '');
+    if (!confirm(`「${name}」を削除してもよろしいですか？\nこの操作は取り消せません。`)) {
       return;
     }
 
     try {
       await window.llamaAPI.deleteModel(modelId);
 
-      // インストール済みリストから削除
       const presetId = modelId.replace('.gguf', '');
       this.installedModelIds.delete(presetId);
+      this.installedModelIds.delete(modelId);
 
       this.refreshUI();
 
-      // メインのモデルリストを更新
       if (window.loadModels) {
         await window.loadModels();
       }
@@ -343,7 +581,6 @@ class ModelStore {
 
     this.refreshUI();
 
-    // メインのモデルリストを更新
     if (window.loadModels) {
       await window.loadModels();
     }
@@ -367,15 +604,18 @@ class ModelStore {
    * UIを更新
    */
   refreshUI() {
-    const listContainer = document.getElementById('model-store-list');
-    if (listContainer) {
-      const licenseFilter = document.getElementById('license-filter')?.value || 'all';
-      const memoryFilter = document.getElementById('memory-filter')?.value || 'all';
+    // プリセットタブ更新
+    const licenseFilter = document.getElementById('license-filter')?.value || 'all';
+    const memoryFilter = document.getElementById('memory-filter')?.value || 'all';
+    const presetList = document.getElementById('model-store-list');
+    if (presetList) {
+      presetList.innerHTML = this.renderModelList({ license: licenseFilter, memory: memoryFilter });
+    }
 
-      listContainer.innerHTML = this.renderModelList({
-        license: licenseFilter,
-        memory: memoryFilter,
-      });
+    // HFタブ更新
+    const hfList = document.getElementById('hf-model-list');
+    if (hfList) {
+      hfList.innerHTML = this.renderHfModelList();
     }
   }
 
@@ -401,21 +641,52 @@ class ModelStore {
    * モーダル内のクリックイベントを処理
    */
   handleModalClick(event) {
-    const action = event.target.dataset.action;
+    const target = event.target.closest('[data-action]');
+    if (!target) return;
+    const action = target.dataset.action;
 
-    if (action === 'close') {
-      this.hide();
-    } else if (action === 'download') {
-      const modelId = event.target.dataset.modelId;
-      this.startDownload(modelId);
-    } else if (action === 'cancel') {
-      const downloadId = event.target.dataset.downloadId;
-      this.cancelDownload(downloadId);
-    } else if (action === 'delete') {
-      const modelId = event.target.dataset.modelId;
-      this.deleteModel(modelId);
-    } else if (action === 'change-dir') {
-      this.changeModelsDirectory();
+    switch (action) {
+      case 'close':
+        this.hide();
+        break;
+      case 'tab':
+        this.switchTab(target.dataset.tab);
+        break;
+      case 'download':
+        this.startDownload(target.dataset.modelId);
+        break;
+      case 'hf-download': {
+        try {
+          const hfModel = JSON.parse(decodeURIComponent(target.dataset.hfModel));
+          this.startHfDownload(hfModel);
+        } catch (e) {
+          console.error('Failed to parse hf model data:', e);
+        }
+        break;
+      }
+      case 'hf-search':
+        this.executeHfSearch();
+        break;
+      case 'hint-search': {
+        const searchInput = document.getElementById('hf-search-input');
+        if (searchInput) {
+          searchInput.value = target.dataset.hint;
+        }
+        this.executeHfSearch();
+        break;
+      }
+      case 'cancel':
+        this.cancelDownload(target.dataset.downloadId);
+        break;
+      case 'delete':
+        this.deleteModel(target.dataset.modelId, target.dataset.modelName);
+        break;
+      case 'delete-hf':
+        this.deleteModel(target.dataset.modelId, target.dataset.modelName);
+        break;
+      case 'change-dir':
+        this.changeModelsDirectory();
+        break;
     }
   }
 
@@ -424,34 +695,23 @@ class ModelStore {
    */
   async changeModelsDirectory() {
     try {
-      // ディレクトリ選択ダイアログを表示
       const result = await window.electronAPI.modelsDir.select();
 
-      if (result.canceled) {
-        return;
-      }
+      if (result.canceled) return;
 
       const newDir = result.path;
-      console.log('Selected new models directory:', newDir);
-
-      // 確認ダイアログ
       const confirmed = confirm(
         `モデル保存ディレクトリを変更しますか？\n\n新しい保存先:\n${newDir}\n\n※既存のモデルは移動されません。新しいディレクトリからモデルを読み込みます。`
       );
 
-      if (!confirmed) {
-        return;
-      }
+      if (!confirmed) return;
 
-      // ディレクトリを設定
       await window.electronAPI.modelsDir.set(newDir);
       this.currentModelsDir = newDir;
 
-      // インストール済みモデルを再確認
       await this.checkInstalledModels();
       this.refreshUI();
 
-      // メインのモデルリストを更新
       if (window.loadModels) {
         await window.loadModels();
       }
@@ -468,7 +728,6 @@ class ModelStore {
    */
   handleModalChange(event) {
     const action = event.target.dataset.action;
-
     if (action === 'filter') {
       this.applyFilters();
     }

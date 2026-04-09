@@ -55,6 +55,10 @@ const IPC_CHANNELS = {
   DOWNLOAD_COMPLETE: 'download:complete',
   DOWNLOAD_ERROR: 'download:error',
 
+  // HuggingFace検索
+  HF_SEARCH_MODELS: 'hf:searchModels',
+  HF_DOWNLOAD_MODEL: 'hf:downloadModel',
+
   // 会話管理
   CONVERSATION_LIST: 'conversation:list',
   CONVERSATION_LOAD: 'conversation:load',
@@ -101,6 +105,7 @@ const DEFAULT_SETTINGS = {
   maxTokens: 2048,
   systemPrompt: 'You are a helpful assistant.',
   modelsDirectory: MODELS_DIR, // デフォルトのモデル保存ディレクトリ
+  hfToken: '', // HuggingFace APIトークン
 };
 
 module.exports = {

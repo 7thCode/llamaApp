@@ -29,6 +29,10 @@ const IPC_CHANNELS = {
   DOWNLOAD_COMPLETE: 'download:complete',
   DOWNLOAD_ERROR: 'download:error',
 
+  // HuggingFace検索
+  HF_SEARCH_MODELS: 'hf:searchModels',
+  HF_DOWNLOAD_MODEL: 'hf:downloadModel',
+
   // 会話管理
   CONVERSATION_LIST: 'conversation:list',
   CONVERSATION_LOAD: 'conversation:load',
@@ -197,6 +201,13 @@ contextBridge.exposeInMainWorld('llamaAPI', {
 
   onToolError: (callback) =>
     ipcRenderer.on(IPC_CHANNELS.AGENT_TOOL_ERROR, (event, data) => callback(data)),
+
+  // HuggingFace検索
+  hfSearchModels: (searchOptions) =>
+    ipcRenderer.invoke(IPC_CHANNELS.HF_SEARCH_MODELS, searchOptions),
+
+  hfDownloadModel: (hfModel) =>
+    ipcRenderer.invoke(IPC_CHANNELS.HF_DOWNLOAD_MODEL, { hfModel }),
 });
 
 // 設定API

@@ -10,6 +10,7 @@ class SettingsPanel {
       systemPrompt: '',
       temperature: 0.7,
       maxTokens: 2048,
+      hfToken: '',
     };
     this.init();
   }
@@ -86,7 +87,33 @@ class SettingsPanel {
               class="number-input"
             />
           </div>
-        </div>
+
+          <!-- HuggingFace API トークン -->
+          <div class="setting-group">
+            <label for="hf-token">HuggingFace API トークン</label>
+            <p class="setting-description">
+              HuggingFace Hub からモデルを検索・ダウンロードする際に使用します。<br>
+              <a href="https://huggingface.co/settings/tokens" target="_blank" style="color: var(--accent-color, #007aff); font-size: 12px;">🔗 トークンを取得する (huggingface.co)</a>
+            </p>
+            <div style="position: relative;">
+              <input
+                type="password"
+                id="hf-token"
+                placeholder="hf_xxxxxxxx..."
+                class="number-input"
+                style="width: 100%; padding-right: 80px;"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <button
+                id="hf-token-toggle"
+                type="button"
+                style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: transparent; border: none; color: var(--text-secondary, #999); font-size: 13px; cursor: pointer; padding: 4px 8px;"
+              >表示</button>
+            </div>
+          </div>
+
+        </div><!-- /.settings-body -->
 
         <div class="settings-footer">
           <button id="reset-settings" class="btn-secondary">デフォルトに戻す</button>
@@ -129,6 +156,20 @@ class SettingsPanel {
     // リセットボタン
     const resetBtn = document.getElementById('reset-settings');
     resetBtn?.addEventListener('click', () => this.resetSettings());
+
+    // HFトークン表示/非表示トグル
+    const hfTokenToggle = document.getElementById('hf-token-toggle');
+    hfTokenToggle?.addEventListener('click', () => {
+      const hfTokenEl = document.getElementById('hf-token');
+      if (!hfTokenEl) return;
+      if (hfTokenEl.type === 'password') {
+        hfTokenEl.type = 'text';
+        hfTokenToggle.textContent = '隠す';
+      } else {
+        hfTokenEl.type = 'password';
+        hfTokenToggle.textContent = '表示';
+      }
+    });
   }
 
   /**
@@ -174,11 +215,13 @@ class SettingsPanel {
     const temperatureEl = document.getElementById('temperature');
     const temperatureValueEl = document.getElementById('temperature-value');
     const maxTokensEl = document.getElementById('max-tokens');
+    const hfTokenEl = document.getElementById('hf-token');
 
     if (systemPromptEl) systemPromptEl.value = this.currentSettings.systemPrompt || '';
     if (temperatureEl) temperatureEl.value = this.currentSettings.temperature || 0.7;
     if (temperatureValueEl) temperatureValueEl.textContent = this.currentSettings.temperature || 0.7;
     if (maxTokensEl) maxTokensEl.value = this.currentSettings.maxTokens || 2048;
+    if (hfTokenEl) hfTokenEl.value = this.currentSettings.hfToken || '';
   }
 
   /**
@@ -188,6 +231,7 @@ class SettingsPanel {
     const systemPrompt = document.getElementById('system-prompt')?.value || '';
     const temperature = parseFloat(document.getElementById('temperature')?.value || '0.7');
     const maxTokens = parseInt(document.getElementById('max-tokens')?.value || '2048', 10);
+    const hfToken = document.getElementById('hf-token')?.value.trim() || '';
 
     // バリデーション
     if (temperature < 0 || temperature > 1) {
@@ -204,6 +248,7 @@ class SettingsPanel {
       systemPrompt,
       temperature,
       maxTokens,
+      hfToken,
     };
 
     try {
@@ -220,7 +265,8 @@ class SettingsPanel {
    * デフォルト設定に戻す
    */
   resetSettings() {
-    if (!confirm('設定をデフォルトに戻しますか？')) {
+    if (!confirm('設定をデフォルトに戻しますか？
+※HuggingFace APIトークンはそのまま保持されます。')) {
       return;
     }
 
@@ -228,6 +274,7 @@ class SettingsPanel {
       systemPrompt: '',
       temperature: 0.7,
       maxTokens: 2048,
+      hfToken: this.currentSettings.hfToken || '', // トークンは保持
     };
 
     this.updateUI();

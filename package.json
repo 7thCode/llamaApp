@@ -19,7 +19,9 @@
     "package:dir": "npm run clean && npm run rebuild && npm run build:dir",
     "test": "jest",
     "lint": "eslint src/**/*.js",
-    "format": "prettier --write \"src/**/*.{js,json,html,css}\""
+    "format": "prettier --write \"src/**/*.{js,json,html,css}\"",
+    "setup-hooks": "mkdir -p .git/hooks && cp .git-hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit && echo '✅ Git hooks installed'",
+    "postinstall": "npm run setup-hooks 2>/dev/null || true"
   },
   "keywords": [
     "electron",
