@@ -1,0 +1,91 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start (Dev)",
+      "type": "npm",
+      "script": "dev",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [],
+      "detail": "DevTools付きでアプリを起動"
+    },
+    {
+      "label": "Start",
+      "type": "npm",
+      "script": "start",
+      "group": "build",
+      "problemMatcher": [],
+      "detail": "アプリを起動"
+    },
+    {
+      "label": "Rebuild Native Modules",
+      "type": "npm",
+      "script": "rebuild",
+      "group": "build",
+      "problemMatcher": [],
+      "detail": "node-llama-cppをリビルド"
+    },
+    {
+      "label": "Build Mac App",
+      "type": "npm",
+      "script": "build:mac",
+      "group": "build",
+      "problemMatcher": [],
+      "detail": "macOS用アプリをビルド"
+    },
+    {
+      "label": "Build DMG",
+      "type": "npm",
+      "script": "build:dmg",
+      "group": "build",
+      "problemMatcher": [],
+      "detail": "DMGインストーラーをビルド"
+    },
+    {
+      "label": "Package (Full)",
+      "type": "npm",
+      "script": "package:mac",
+      "group": "build",
+      "problemMatcher": [],
+      "detail": "クリーン→リビルド→ビルド(Mac)"
+    },
+    {
+      "label": "Lint",
+      "type": "npm",
+      "script": "lint",
+      "group": "test",
+      "problemMatcher": ["$eslint-stylish"],
+      "detail": "ESLintでコードをチェック"
+    },
+    {
+      "label": "Format",
+      "type": "npm",
+      "script": "format",
+      "group": "none",
+      "problemMatcher": [],
+      "detail": "Prettierでコードをフォーマット"
+    },
+    {
+      "label": "Test",
+      "type": "npm",
+      "script": "test",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": [],
+      "detail": "Jestテストを実行"
+    },
+    {
+      "label": "Clean",
+      "type": "npm",
+      "script": "clean",
+      "group": "none",
+      "problemMatcher": [],
+      "detail": "distフォルダを削除"
+    }
+  ]
+}

@@ -10,7 +10,6 @@ out/
 Thumbs.db
 
 # IDE
-.vscode/
 .idea/
 
 # Logs

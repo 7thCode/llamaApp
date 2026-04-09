@@ -1,6 +1,34 @@
 {
   "models": [
     {
+      "id": "lfm2.5-1.2b-instruct",
+      "name": "LiquidAI LFM2.5 1.2B Instruct",
+      "author": "Liquid AI",
+      "size": 800000000,
+      "memoryRequired": 2147483648,
+      "quantization": "Q4_K_M",
+      "license": "Liquid AI License",
+      "licenseUrl": "https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct/blob/main/LICENSE",
+      "commercial": true,
+      "downloadUrl": "https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF/resolve/main/LFM2.5-1.2B-Instruct-Q4_K_M.gguf",
+      "tags": ["ultra-light", "fast", "instruct", "efficient"],
+      "description": "超軽量1.2Bパラメータの指示追従モデル。低メモリで高速な推論を実現"
+    },
+    {
+      "id": "lfm2-2.6b-exp",
+      "name": "LFM2 2.6B Exp",
+      "author": "Liquid AI",
+      "size": 1717986918,
+      "memoryRequired": 3221225472,
+      "quantization": "Q4_K_M",
+      "license": "Liquid AI License",
+      "licenseUrl": "https://huggingface.co/LiquidAI/LFM2-2.6B-Exp/blob/main/LICENSE",
+      "commercial": true,
+      "downloadUrl": "https://huggingface.co/LiquidAI/LFM2-2.6B-Exp-GGUF/resolve/main/LFM2-2.6B-Exp-Q4_K_M.gguf",
+      "tags": ["edge", "fast", "hybrid", "agentic"],
+      "description": "Edge AI向けに最適化された次世代ハイブリッドモデル。高品質・高速・省メモリを実現"
+    },
+    {
       "id": "llama-3.2-3b-instruct",
       "name": "Llama 3.2 3B Instruct",
       "author": "Meta",
@@ -293,6 +321,20 @@
       "downloadUrl": "https://huggingface.co/TheBloke/dolphin-2.6-mixtral-8x7b-GGUF/resolve/main/dolphin-2.6-mixtral-8x7b.Q4_K_M.gguf",
       "tags": ["large", "commercial", "uncensored", "moe"],
       "description": "Uncensored Mixtral model trained on diverse dataset with strong capabilities"
+    },
+    {
+      "id": "llm-jp-4-32b-a3b-thinking",
+      "name": "LLM-JP-4 32B A3B Thinking",
+      "author": "llm-jp",
+      "size": 21400590016,
+      "memoryRequired": 25769803776,
+      "quantization": "Q4_K_M",
+      "license": "Apache 2.0",
+      "licenseUrl": "https://choosealicense.com/licenses/apache-2.0/",
+      "commercial": true,
+      "downloadUrl": "https://huggingface.co/mmnga-o/llm-jp-4-32b-a3b-thinking-gguf/resolve/main/llm-jp-4-32b-a3b-thinking-Q4_K_M.gguf",
+      "tags": ["large", "japanese", "thinking", "32b"],
+      "description": "LLM-JP 4 32B model with thinking/reasoning capabilities, optimized for Japanese content"
     }
   ]
 }
