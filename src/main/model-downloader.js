@@ -13,9 +13,10 @@ const { promisify } = require('util');
 const execAsync = promisify(exec);
 
 class ModelDownloader {
-  constructor(win, modelsDir) {
+  constructor(win, modelsDir, hfToken = '') {
     this.win = win;
     this.modelsDir = modelsDir;
+    this.hfToken = hfToken;
     this.activeDownloads = new Map();
   }
 
@@ -25,6 +26,14 @@ class ModelDownloader {
    */
   setModelsDirectory(newDir) {
     this.modelsDir = newDir;
+  }
+
+  /**
+   * HuggingFace APIトークンを設定
+   * @param {string} token
+   */
+  setHfToken(token) {
+    this.hfToken = token;
   }
 
   /**
@@ -76,7 +85,7 @@ class ModelDownloader {
     this.activeDownloads.set(downloadId, downloadState);
 
     try {
-      return await this._performDownload(downloadId, modelConfig, tempPath, finalPath);
+      return await this._performDownloadWithRetry(downloadId, modelConfig, tempPath, finalPath);
     } catch (error) {
       // エラー時は一時ファイルを削除
       if (fs.existsSync(tempPath)) {
@@ -90,6 +99,64 @@ class ModelDownloader {
   /**
    * 実際のダウンロード処理
    */
+  /**
+   * 指定ミリ秒待機するヘルパー
+   * @param {number} ms
+   */
+  _sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * リトライ付きダウンロード（503/429 対策）
+   * @param {string} downloadId
+   * @param {Object} modelConfig
+   * @param {string} tempPath
+   * @param {string} finalPath
+   * @param {number} attempt - 現在の試行回数（0始まり）
+   */
+  async _performDownloadWithRetry(downloadId, modelConfig, tempPath, finalPath, attempt = 0) {
+    const MAX_RETRIES = 3;
+    const RETRY_DELAYS = [5000, 15000, 30000]; // 5秒、15秒、30秒
+
+    try {
+      return await this._performDownload(downloadId, modelConfig, tempPath, finalPath);
+    } catch (error) {
+      const isRetryable = error.message.includes('503') ||
+                          error.message.includes('429') ||
+                          error.message.includes('timeout') ||
+                          error.message.includes('ECONNRESET');
+
+      if (isRetryable && attempt < MAX_RETRIES) {
+        const delay = RETRY_DELAYS[attempt] || 30000;
+        console.log(`[Downloader] Retryable error (${error.message}), retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})...`);
+
+        // プログレスUIにリトライ通知
+        if (this.win && !this.win.isDestroyed()) {
+          this.win.webContents.send('download:retry', {
+            downloadId,
+            modelId: modelConfig.id,
+            attempt: attempt + 1,
+            maxRetries: MAX_RETRIES,
+            delayMs: delay,
+            reason: error.message,
+          });
+        }
+
+        await this._sleep(delay);
+
+        // 一時ファイルが残っていたら削除してから再試行
+        if (fs.existsSync(tempPath)) {
+          fs.unlinkSync(tempPath);
+        }
+
+        return this._performDownloadWithRetry(downloadId, modelConfig, tempPath, finalPath, attempt + 1);
+      }
+
+      throw error;
+    }
+  }
+
   _performDownload(downloadId, modelConfig, tempPath, finalPath) {
     return new Promise((resolve, reject) => {
       const file = fs.createWriteStream(tempPath);
@@ -100,14 +167,28 @@ class ModelDownloader {
 
       const downloadState = this.activeDownloads.get(downloadId);
 
-      const request = https.get(modelConfig.downloadUrl, { timeout: 30000 }, (response) => {
-        // リダイレクトの処理
-        if (response.statusCode === 301 || response.statusCode === 302) {
+      // HFトークンがあれば Authorization ヘッダーを付加
+      const requestOptions = {
+        timeout: 30000,
+        headers: {},
+      };
+      if (this.hfToken) {
+        requestOptions.headers['Authorization'] = `Bearer ${this.hfToken}`;
+      }
+
+      const request = https.get(modelConfig.downloadUrl, requestOptions, (response) => {
+        // リダイレクトの処理（301, 302, 307, 308)
+        if ([301, 302, 307, 308].includes(response.statusCode)) {
           file.close();
-          fs.unlinkSync(tempPath);
+          if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
 
           const redirectUrl = response.headers.location;
+          if (!redirectUrl) {
+            reject(new Error(`Redirect (${response.statusCode}) but no Location header`));
+            return;
+          }
           modelConfig.downloadUrl = redirectUrl;
+          console.log(`[Downloader] Redirected (${response.statusCode}) to: ${redirectUrl}`);
 
           // リダイレクト先で再試行
           this._performDownload(downloadId, modelConfig, tempPath, finalPath)
@@ -118,7 +199,7 @@ class ModelDownloader {
 
         if (response.statusCode !== 200) {
           file.close();
-          fs.unlinkSync(tempPath);
+          if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
           reject(new Error(`Download failed with status code: ${response.statusCode}`));
           return;
         }

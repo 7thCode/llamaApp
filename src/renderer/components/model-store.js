@@ -7,6 +7,7 @@ class ModelStore {
   constructor() {
     this.presetModels = [];
     this.hfModels = [];
+    this.localModels = [];
     this.downloads = new Map(); // downloadId -> { modelId, progress, speed, eta }
     this.installedModelIds = new Set();
     this.activeTab = 'preset'; // 'preset' | 'hf'
@@ -67,6 +68,7 @@ class ModelStore {
     try {
       const { models } = await window.llamaAPI.listModels();
       this.installedModelIds.clear();
+      this.localModels = models || [];
 
       for (const model of models) {
         for (const preset of this.presetModels) {
@@ -76,8 +78,7 @@ class ModelStore {
         }
         // HFモデルのIDも確認
         for (const hfm of this.hfModels) {
-          const filename = hfm.downloadUrl.split('/').pop();
-          if (model.id === filename) {
+          if (model.id === `${hfm.id}.gguf`) {
             this.installedModelIds.add(hfm.id);
           }
         }
@@ -143,6 +144,9 @@ class ModelStore {
           <button class="tab-btn ${this.activeTab === 'hf' ? 'active' : ''}" data-action="tab" data-tab="hf">
             🤗 HuggingFace 検索
           </button>
+          <button class="tab-btn ${this.activeTab === 'local' ? 'active' : ''}" data-action="tab" data-tab="local">
+            💾 ダウンロード済み
+          </button>
         </div>
 
         <div class="tab-content" id="tab-preset" style="display: ${this.activeTab === 'preset' ? 'flex' : 'none'}; flex-direction: column; height: 100%;">
@@ -202,6 +206,12 @@ class ModelStore {
           </div>
           <div class="model-store-list" id="hf-model-list">
             ${this.renderHfModelList()}
+          </div>
+        </div>
+
+        <div class="tab-content" id="tab-local" style="display: ${this.activeTab === 'local' ? 'flex' : 'none'}; flex-direction: column; height: 100%;">
+          <div class="model-store-list" id="local-model-list">
+            ${this.renderLocalModelList()}
           </div>
         </div>
       </div>
@@ -332,7 +342,7 @@ class ModelStore {
           <button class="btn-installed" disabled>✓ インストール済み</button>
           <button class="btn-delete"
             data-action="${source === 'preset' ? 'delete' : 'delete-hf'}"
-            data-model-id="${source === 'preset' ? model.id + '.gguf' : model.downloadUrl.split('/').pop()}"
+            data-model-id="${source === 'preset' ? model.id + '.gguf' : model.id + '.gguf'}"
             data-model-name="${model.name}"
             title="このモデルを削除">🗑️ 削除</button>
         </div>
@@ -484,6 +494,42 @@ class ModelStore {
   }
 
   /**
+   * ダウンロード済みローカルモデルリストをレンダリング
+   */
+  renderLocalModelList() {
+    // localModelsからプリセットモデルを除外
+    const presetFileNames = new Set(this.presetModels.map(p => `${p.id}.gguf`));
+    const hfDownloadedModels = this.localModels.filter(m => !presetFileNames.has(m.id));
+
+    if (hfDownloadedModels.length === 0) {
+      return '<div class="empty-state">HuggingFace検索などから追加されたモデルはありません。</div>';
+    }
+
+    return hfDownloadedModels.map(model => `
+      <div class="model-card" data-model-id="${model.id}">
+        <div class="model-info">
+          <h3>${model.name}</h3>
+          <p class="model-description">ファイル: ${model.id}</p>
+          <div class="model-specs">
+            <span class="spec">📦 ${model.sizeFormatted}</span>
+            <span class="spec">📅 ${new Date(model.createdAt).toLocaleDateString()}</span>
+          </div>
+          <div class="model-tags">
+            <span class="tag hf-source">🤗 HF / Local</span>
+          </div>
+        </div>
+        <div class="model-actions">
+          <button class="btn-delete"
+            data-action="delete-local"
+            data-model-id="${model.id}"
+            data-model-name="${model.name}"
+            title="このモデルを削除">🗑️ 削除</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  /**
    * タブを切り替え
    */
   switchTab(tab) {
@@ -497,6 +543,7 @@ class ModelStore {
     // タブコンテンツ
     document.getElementById('tab-preset').style.display = tab === 'preset' ? 'flex' : 'none';
     document.getElementById('tab-hf').style.display = tab === 'hf' ? 'flex' : 'none';
+    document.getElementById('tab-local').style.display = tab === 'local' ? 'flex' : 'none';
   }
 
   /**
@@ -537,9 +584,8 @@ class ModelStore {
     try {
       await window.llamaAPI.deleteModel(modelId);
 
-      const presetId = modelId.replace('.gguf', '');
-      this.installedModelIds.delete(presetId);
-      this.installedModelIds.delete(modelId);
+      // 削除後、インストール済みモデルのリストを最新化する
+      await this.checkInstalledModels();
 
       this.refreshUI();
 
@@ -577,7 +623,9 @@ class ModelStore {
     const { downloadId, modelId } = data;
 
     this.downloads.delete(downloadId);
-    this.installedModelIds.add(modelId);
+    
+    // ダウンロード完了後、インストール済みリストを再取得
+    await this.checkInstalledModels();
 
     this.refreshUI();
 
@@ -616,6 +664,12 @@ class ModelStore {
     const hfList = document.getElementById('hf-model-list');
     if (hfList) {
       hfList.innerHTML = this.renderHfModelList();
+    }
+
+    // Localタブ更新
+    const localList = document.getElementById('local-model-list');
+    if (localList) {
+      localList.innerHTML = this.renderLocalModelList();
     }
   }
 
@@ -682,6 +736,9 @@ class ModelStore {
         this.deleteModel(target.dataset.modelId, target.dataset.modelName);
         break;
       case 'delete-hf':
+        this.deleteModel(target.dataset.modelId, target.dataset.modelName);
+        break;
+      case 'delete-local':
         this.deleteModel(target.dataset.modelId, target.dataset.modelName);
         break;
       case 'change-dir':
