@@ -32,6 +32,24 @@
       "runtimeArgs": ["run", "test", "--", "--runInBand"],
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "name": "Package: Mac (DMG)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "package:dmg"],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Package: Mac (Dir)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "package:dir"],
+      "console": "integratedTerminal"
     }
   ],
   "compounds": [
