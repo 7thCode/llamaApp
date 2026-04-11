@@ -173,7 +173,7 @@ function setupIpcHandlers() {
         enhancedPrompt,
         (token) => {
           // ストリーミングトークンをレンダラーに送信
-          mainWindow.webContents.send(IPC_CHANNELS.LLAMA_TOKEN, {
+          event.sender.send(IPC_CHANNELS.LLAMA_TOKEN, {
             token,
             conversationId,
           });
@@ -181,7 +181,7 @@ function setupIpcHandlers() {
       );
 
       // 生成完了を通知
-      mainWindow.webContents.send(IPC_CHANNELS.LLAMA_DONE, {
+      event.sender.send(IPC_CHANNELS.LLAMA_DONE, {
         totalTokens: result.totalTokens,
         conversationId,
       });
@@ -189,7 +189,7 @@ function setupIpcHandlers() {
       return { success: true };
     } catch (error) {
       console.error('Generation error:', error);
-      mainWindow.webContents.send(IPC_CHANNELS.LLAMA_ERROR, {
+      event.sender.send(IPC_CHANNELS.LLAMA_ERROR, {
         error: error.message,
         conversationId,
       });

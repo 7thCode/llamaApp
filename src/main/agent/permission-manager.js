@@ -19,9 +19,7 @@ class PermissionManager {
     return {
       // 許可ディレクトリ（ホワイトリスト）
       allowedDirectories: [
-        path.join(os.homedir(), 'Documents'),
-        path.join(os.homedir(), 'Desktop'),
-        path.join(os.homedir(), 'Downloads'),
+        os.homedir()
       ],
 
       // ブロックディレクトリ（完全禁止）

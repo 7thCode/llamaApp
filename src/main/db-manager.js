@@ -204,6 +204,19 @@ class DBManager {
    * @returns {Array} 検索結果 [{pageId, url, title, content, score, chunkIndex}]
    */
   search(query, limit = 3) {
+    if (!query) return [];
+    
+    // FTS5の構文エラーを避けるため、特殊文字をスペースに置換
+    const safeQuery = query.replace(/[^\p{L}\p{N}_]+/gu, ' ').trim();
+    
+    // トークンごとに分割
+    const tokens = safeQuery.split(/\s+/).filter(t => t.length > 0);
+    
+    if (tokens.length === 0) return [];
+
+    // FTS5で安全に検索できるように、各トークンをダブルクォートで囲む
+    const ftsQuery = tokens.map(t => `"${t}"`).join(' OR ');
+
     const stmt = this.db.prepare(`
       SELECT
         chunks_fts.page_id as pageId,
@@ -219,7 +232,7 @@ class DBManager {
       LIMIT ?
     `);
 
-    return stmt.all(query, limit);
+    return stmt.all(ftsQuery, limit);
   }
 
   /**

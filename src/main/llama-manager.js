@@ -268,16 +268,15 @@ You have access to the following tools to help answer user queries. To use a too
 
 **PATH RULES - CRITICAL:**
 - ALWAYS use ~ (tilde) for paths in the user's home directory
-- Allowed directories: ~/Documents, ~/Desktop, ~/Downloads
+- Allowed directories: Any directory under your home folder (~)
 - Examples:
   * "ドキュメントフォルダ" or "Documents folder" → Use path: "~/Documents"
-  * "デスクトップ" or "Desktop" → Use path: "~/Desktop"
-  * "ダウンロード" or "Downloads" → Use path: "~/Downloads"
+  * "プロジェクト" or "Project" → Use path: "~/project"
 - NEVER use paths like "/Users/.../Documents" or "Documents" - ALWAYS use "~/Documents"
 
 ${toolsDescription}
 
-Remember: ALWAYS use ~/Documents, ~/Desktop, or ~/Downloads for paths!`;
+Remember: ALWAYS use ~ for paths in the home directory!`;
   }
 
   /**

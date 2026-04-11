@@ -62,9 +62,9 @@ class AgentController {
 
       // === システム管理ツール ===
       get_disk_usage: {
-        description: 'Get disk usage statistics for a directory (top 20 largest items). Only ~/Documents, ~/Desktop, ~/Downloads are accessible.',
+        description: 'Get disk usage statistics for a directory (top 20 largest items).',
         parameters: {
-          path: { type: 'string', description: 'Directory path to analyze (e.g., ~/Documents, ~/Desktop, ~/Downloads). Use ~ for home directory.' }
+          path: { type: 'string', description: 'Directory path to analyze (e.g., ~/Documents, ~/Desktop). Use ~ for home directory.' }
         },
         handler: this._getDiskUsage.bind(this)
       },
@@ -103,16 +103,35 @@ class AgentController {
 
       // === コード実行ツール ===
       execute_code: {
-        description: 'Execute Python or Bash code with safety restrictions (30s timeout, ~/Documents working directory)',
+        description: 'Execute Python or Bash code with safety restrictions (30s timeout)',
         parameters: {
           language: { type: 'string', description: 'Language to execute (python or bash)' },
           code: { type: 'string', description: 'Code to execute' },
-          workingDir: { type: 'string', optional: true, description: 'Working directory (defaults to ~/Documents). Use ~ for home directory.' },
+          workingDir: { type: 'string', optional: true, description: 'Working directory. Use ~ for home directory.' },
           timeout: { type: 'number', optional: true, description: 'Timeout in seconds (default 30, max 60)' }
         },
         handler: this._executeCode.bind(this)
       },
     };
+  }
+
+  /**
+   * ツール定義のリストを取得
+   */
+  getToolDefinitions() {
+    return Object.entries(this.tools).map(([name, def]) => ({
+      name,
+      description: def.description,
+      parameters: def.parameters
+    }));
+  }
+
+  /**
+   * 実行履歴を取得
+   * @param {number} limit - 取得する最大件数
+   */
+  getExecutionHistory(limit = 50) {
+    return this.executionHistory.slice(0, limit);
   }
 
   /**
