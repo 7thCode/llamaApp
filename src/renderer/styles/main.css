@@ -17,6 +17,19 @@
   --accent: #007acc;
   --accent-hover: #005a9e;
   --border: #404040;
+  --error: #f44336;
+  --warning: #ff9800;
+}
+
+body.theme-light {
+  --bg-primary: #f5f5f5;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #e4e4e4;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --accent: #007acc;
+  --accent-hover: #005a9e;
+  --border: #d0d0d0;
   --success: #4caf50;
   --error: #f44336;
   --warning: #ff9800;
@@ -120,6 +133,7 @@ button:disabled {
   border-radius: 50%;
 }
 
+#theme-toggle-btn,
 #settings-btn,
 #model-store-btn,
 #agent-btn,
@@ -133,6 +147,7 @@ button:disabled {
   transition: all 0.2s;
 }
 
+#theme-toggle-btn:hover,
 #settings-btn:hover,
 #model-store-btn:hover,
 #agent-btn:hover,

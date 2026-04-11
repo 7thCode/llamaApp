@@ -6,7 +6,7 @@ const path = require('path');
 const os = require('os');
 
 // アプリケーション名
-const APP_NAME = 'Llamaapp';
+const APP_NAME = 'AlpaChat';
 
 // モデル保存ディレクトリ
 const MODELS_DIR = path.join(

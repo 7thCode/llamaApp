@@ -249,6 +249,7 @@ class SettingsPanel {
       temperature,
       maxTokens,
       hfToken,
+      theme: this.currentSettings.theme || 'dark',
     };
 
     try {
@@ -278,6 +279,7 @@ class SettingsPanel {
       temperature: 0.7,
       maxTokens: 2048,
       hfToken: this.currentSettings.hfToken || '', // トークンは保持
+      theme: this.currentSettings.theme || 'dark', // テーマも保持
     };
 
     this.updateUI();

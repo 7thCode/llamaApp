@@ -1,5 +1,5 @@
 {
-  "name": "llamaapp",
+  "name": "alpachat",
   "version": "0.1.0",
   "description": "Local LLM Chat Application with llama.cpp",
   "main": "src/main/main.js",
@@ -50,8 +50,8 @@
     "uuid": "^9.0.1"
   },
   "build": {
-    "appId": "com.local.llamaapp",
-    "productName": "LlamaApp",
+    "appId": "com.local.alpachat",
+    "productName": "AlpaChat",
     "directories": {
       "output": "dist"
     },
@@ -112,7 +112,7 @@
           "path": "/Applications"
         }
       ],
-      "title": "LlamaApp ${version} Installer"
+      "title": "AlpaChat ${version} Installer"
     }
   }
 }

@@ -96,6 +96,41 @@ function setupEventListeners() {
   window.llamaAPI.onToolStart(handleToolStart);
   window.llamaAPI.onToolComplete(handleToolComplete);
   window.llamaAPI.onToolError(handleToolError);
+
+  // テーマ切り替えボタン
+  const themeBtn = document.getElementById('theme-toggle-btn');
+  if (themeBtn) {
+    themeBtn.addEventListener('click', handleThemeToggle);
+  }
+}
+
+/**
+ * テーマ切り替え処理
+ */
+async function handleThemeToggle() {
+  const newTheme = currentSettings.theme === 'light' ? 'dark' : 'light';
+  currentSettings.theme = newTheme;
+  applyTheme(newTheme);
+  
+  try {
+    await window.electronAPI.settings.save(currentSettings);
+  } catch (error) {
+    console.error('Failed to save theme setting:', error);
+  }
+}
+
+/**
+ * テーマ適用
+ */
+function applyTheme(theme) {
+  const themeBtn = document.getElementById('theme-toggle-btn');
+  if (theme === 'light') {
+    document.body.classList.add('theme-light');
+    if (themeBtn) themeBtn.textContent = '🌙';
+  } else {
+    document.body.classList.remove('theme-light');
+    if (themeBtn) themeBtn.textContent = '☀️';
+  }
 }
 
 /**
@@ -419,8 +454,12 @@ async function loadSettings() {
       systemPrompt: '',
       temperature: 0.7,
       maxTokens: 2048,
+      theme: 'dark'
     };
   }
+  
+  // テーマを適用
+  applyTheme(currentSettings.theme || 'dark');
 }
 
 /**
