@@ -38,7 +38,6 @@ function createWindow() {
       nodeIntegration: false,
       sandbox: true,
     },
-    titleBarStyle: 'hiddenInset',
     backgroundColor: '#1e1e1e',
   });
 
