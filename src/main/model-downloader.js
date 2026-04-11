@@ -92,6 +92,15 @@ class ModelDownloader {
         fs.unlinkSync(tempPath);
       }
       this.activeDownloads.delete(downloadId);
+
+      if (this.win && !this.win.isDestroyed()) {
+        this.win.webContents.send('download:error', {
+          downloadId,
+          modelId: modelConfig.id,
+          error: error.message,
+        });
+      }
+
       throw error;
     }
   }
@@ -269,14 +278,6 @@ class ModelDownloader {
           if (fs.existsSync(tempPath)) {
             fs.unlinkSync(tempPath);
           }
-
-          this.win.webContents.send('download:error', {
-            downloadId,
-            modelId: modelConfig.id,
-            error: err.message,
-          });
-
-          this.activeDownloads.delete(downloadId);
           reject(err);
         });
       });
@@ -286,14 +287,6 @@ class ModelDownloader {
         if (fs.existsSync(tempPath)) {
           fs.unlinkSync(tempPath);
         }
-
-        this.win.webContents.send('download:error', {
-          downloadId,
-          modelId: modelConfig.id,
-          error: err.message,
-        });
-
-        this.activeDownloads.delete(downloadId);
         reject(err);
       });
 
@@ -305,13 +298,6 @@ class ModelDownloader {
         }
 
         const error = new Error('Download timeout');
-        this.win.webContents.send('download:error', {
-          downloadId,
-          modelId: modelConfig.id,
-          error: error.message,
-        });
-
-        this.activeDownloads.delete(downloadId);
         reject(error);
       });
     });

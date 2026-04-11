@@ -255,6 +255,10 @@ class SettingsPanel {
       await window.electronAPI.settings.save(this.currentSettings);
       this.showNotification('設定を保存しました', 'success');
       this.close();
+      
+      if (window.loadSettings) {
+        await window.loadSettings();
+      }
     } catch (error) {
       console.error('Failed to save settings:', error);
       this.showNotification('設定の保存に失敗しました', 'error');
@@ -265,8 +269,7 @@ class SettingsPanel {
    * デフォルト設定に戻す
    */
   resetSettings() {
-    if (!confirm('設定をデフォルトに戻しますか？
-※HuggingFace APIトークンはそのまま保持されます。')) {
+    if (!confirm(`設定をデフォルトに戻しますか？\n※HuggingFace APIトークンはそのまま保持されます。`)) {
       return;
     }
 

@@ -240,7 +240,9 @@ async function handleSend() {
 
     // 生成開始（設定からシステムプロンプトを取得）
     const systemPrompt = currentSettings.systemPrompt || null;
-    await window.llamaAPI.generate(message, systemPrompt, currentConversationId);
+    const temperature = currentSettings.temperature !== undefined ? currentSettings.temperature : 0.7;
+    const maxTokens = currentSettings.maxTokens || 2048;
+    await window.llamaAPI.generate(message, systemPrompt, currentConversationId, temperature, maxTokens);
   } catch (error) {
     console.error('Generation failed:', error);
     setStatus('生成に失敗しました: ' + error.message, 'error');

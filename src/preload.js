@@ -76,11 +76,13 @@ const IPC_CHANNELS = {
 // セキュアなAPIをwindow.llamaAPIとして公開
 contextBridge.exposeInMainWorld('llamaAPI', {
   // Llama操作
-  generate: (prompt, systemPrompt, conversationId) =>
+  generate: (prompt, systemPrompt, conversationId, temperature, maxTokens) =>
     ipcRenderer.invoke(IPC_CHANNELS.LLAMA_GENERATE, {
       prompt,
       systemPrompt,
-      conversationId
+      conversationId,
+      temperature,
+      maxTokens
     }),
 
   onToken: (callback) =>

@@ -139,8 +139,8 @@ function initializeRag() {
  * IPCハンドラーの設定
  */
 function setupIpcHandlers() {
-  // Llama生成
-  ipcMain.handle(IPC_CHANNELS.LLAMA_GENERATE, async (event, { prompt, systemPrompt, conversationId }) => {
+  // LLMテキスト生成
+  ipcMain.handle(IPC_CHANNELS.LLAMA_GENERATE, async (event, { prompt, systemPrompt, conversationId, temperature, maxTokens }) => {
     try {
       if (!llamaManager.isModelLoaded()) {
         throw new Error('No model loaded. Please load a model first.');
@@ -177,6 +177,10 @@ function setupIpcHandlers() {
             token,
             conversationId,
           });
+        },
+        {
+          temperature: temperature,
+          maxTokens: maxTokens
         }
       );
 
