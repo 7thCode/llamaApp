@@ -145,6 +145,12 @@ function initializeRag() {
  * IPCハンドラーの設定
  */
 function setupIpcHandlers() {
+  // LLM生成停止
+  ipcMain.handle(IPC_CHANNELS.LLAMA_STOP, () => {
+    llamaManager.stopGeneration();
+    return { success: true };
+  });
+
   // LLMテキスト生成
   ipcMain.handle(IPC_CHANNELS.LLAMA_GENERATE, async (event, { prompt, systemPrompt, conversationId, temperature, maxTokens }) => {
     try {
@@ -201,8 +207,8 @@ function setupIpcHandlers() {
         }
       );
 
-      // アシスタント応答をDBに保存
-      if (conversationId && conversationManager && result.response) {
+      // アシスタント応答をDBに保存（中断時は保存しない）
+      if (conversationId && conversationManager && result.response && !result.aborted) {
         conversationManager.saveMessage(conversationId, 'assistant', result.response);
       }
 

@@ -83,8 +83,14 @@ function setupEventListeners() {
   // Agentトグル
   agentBtn.addEventListener('click', handleAgentToggle);
 
-  // 送信ボタン
-  sendBtn.addEventListener('click', handleSend);
+  // 送信ボタン（生成中は停止ボタンとして機能）
+  sendBtn.addEventListener('click', () => {
+    if (isGenerating) {
+      handleStop();
+    } else {
+      handleSend();
+    }
+  });
 
   // Cmd+Enter (macOS) / Ctrl+Enter (Windows) で送信、Enterは改行
   chatInput.addEventListener('keydown', (e) => {
@@ -271,10 +277,12 @@ async function handleSend() {
     chatInput.value = '';
     autoResizeTextarea();
 
-    // UI状態更新
+    // UI状態更新（送信ボタンを停止ボタンに切り替え）
     isGenerating = true;
     chatInput.disabled = true;
-    sendBtn.disabled = true;
+    sendBtn.disabled = false;
+    sendBtn.classList.add('stop-mode');
+    sendBtn.querySelector('span').textContent = '⏹ 停止';
     setStatus('生成中...');
 
     // ストリーミング用の状態をリセット
@@ -344,12 +352,25 @@ function handleError(data) {
 }
 
 /**
+ * 生成停止ハンドラー
+ */
+async function handleStop() {
+  try {
+    await window.llamaAPI.stop();
+  } catch (error) {
+    console.error('Failed to stop generation:', error);
+  }
+}
+
+/**
  * 生成完了処理
  */
 function finishGeneration() {
   isGenerating = false;
   chatInput.disabled = false;
   sendBtn.disabled = false;
+  sendBtn.classList.remove('stop-mode');
+  sendBtn.querySelector('span').textContent = '送信';
   chatInput.focus();
   streamingMessage = null;
   streamingContent = '';

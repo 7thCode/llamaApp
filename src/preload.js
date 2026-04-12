@@ -85,6 +85,9 @@ contextBridge.exposeInMainWorld('llamaAPI', {
       maxTokens
     }),
 
+  stop: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.LLAMA_STOP),
+
   onToken: (callback) =>
     ipcRenderer.on(IPC_CHANNELS.LLAMA_TOKEN, (event, data) => callback(data)),
 

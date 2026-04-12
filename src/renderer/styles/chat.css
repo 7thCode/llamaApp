@@ -196,6 +196,14 @@
   cursor: not-allowed;
 }
 
+.send-btn.stop-mode {
+  background-color: var(--error);
+}
+
+.send-btn.stop-mode:hover {
+  background-color: #d32f2f;
+}
+
 .input-status {
   margin-top: 8px;
   font-size: 13px;

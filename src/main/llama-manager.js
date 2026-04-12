@@ -23,6 +23,9 @@ class LlamaManager {
     this.agentController = null;
     this.agentEnabled = false;
 
+    // 生成停止用
+    this.abortController = null;
+
     // システムプロンプト
     this.currentSystemPrompt = 'You are a helpful assistant.';
   }
@@ -142,37 +145,36 @@ class LlamaManager {
       throw new Error('Already generating');
     }
 
-    try {
-      this.isGenerating = true;
-      let totalTokens = 0;
-      let fullResponse = '';
+    this.abortController = new AbortController();
+    this.isGenerating = true;
+    let totalTokens = 0;
+    let fullResponse = '';
 
-      // 新API: onTextChunkコールバック使用
-      const response = await this.session.prompt(prompt, {
+    try {
+      // signal を渡してストリーミング中断を有効化
+      await this.session.prompt(prompt, {
         temperature: options.temperature || 0.7,
         maxTokens: options.maxTokens || 2048,
+        signal: this.abortController.signal,
         onTextChunk: (chunk) => {
           fullResponse += chunk;
           totalTokens++;
-
-          if (onToken) {
-            onToken(chunk);
-          }
+          if (onToken) onToken(chunk);
         },
       });
 
-      // レスポンスの確定
-      const finalResponse = fullResponse || response || '';
-
-      this.isGenerating = false;
-      return {
-        response: finalResponse,
-        totalTokens: totalTokens || 1,
-      };
+      return { response: fullResponse, totalTokens: totalTokens || 1, aborted: false };
     } catch (error) {
+      // AbortSignal による中断は正常終了として扱う
+      if (this.abortController?.signal.aborted) {
+        console.log('Generation aborted by user');
+        return { response: fullResponse, totalTokens, aborted: true };
+      }
       console.error('Generation error:', error);
-      this.isGenerating = false;
       throw error;
+    } finally {
+      this.isGenerating = false;
+      this.abortController = null;
     }
   }
 
@@ -180,8 +182,9 @@ class LlamaManager {
    * 生成を停止
    */
   stopGeneration() {
-    // node-llama-cppは現在ストリーミング中断をサポートしていない
-    // 将来的な実装のためのプレースホルダー
+    if (this.abortController) {
+      this.abortController.abort();
+    }
     this.isGenerating = false;
   }
 
@@ -299,89 +302,77 @@ Remember: ALWAYS use ~ for paths in the home directory!`;
       throw new Error('Already generating');
     }
 
+    this.abortController = new AbortController();
+    this.isGenerating = true;
+    let fullResponse = '';
+    let totalTokens = 0;
+
     try {
-      this.isGenerating = true;
-
-      let fullResponse = '';
-      let totalTokens = 0;
-      const maxTurns = 5; // 最大ツール呼び出し回数
+      const maxTurns = 5;
       let turn = 0;
-
-      // 初回プロンプト
       let currentPrompt = prompt;
 
       while (turn < maxTurns) {
+        // ループ開始前に中断チェック
+        if (this.abortController.signal.aborted) break;
+
         turn++;
         let turnResponse = '';
         let turnHasToolCall = false;
 
-        // LLM推論実行
         await this.session.prompt(currentPrompt, {
           temperature: options.temperature || 0.7,
           maxTokens: options.maxTokens || 2048,
+          signal: this.abortController.signal,
           onTextChunk: (chunk) => {
             turnResponse += chunk;
             totalTokens++;
 
-            // ツール呼び出しの開始を検出（JSONコードブロックまたは直接のJSONオブジェクト）
             if (!turnHasToolCall) {
-              // JSONコードブロックの開始を検出
               if (turnResponse.includes('```json') ||
-                  // 直接のJSONオブジェクトの開始を検出（改行後に { "tool" が出現）
                   /\n\s*\{\s*"tool"\s*:/i.test(turnResponse)) {
                 turnHasToolCall = true;
-                console.log('Tool call pattern detected, suppressing streaming');
               }
             }
 
-            // ツール呼び出しを含むターンではストリーミングしない
-            // （ツール実行後の次のターンでのみストリーミング）
             if (!turnHasToolCall && onToken) {
               onToken(chunk);
             }
           },
         });
 
-        // ツール呼び出しチェック
         const toolCall = this._detectToolCall(turnResponse);
 
         if (toolCall) {
-          // ツールを実行
-          console.log('Executing tool:', toolCall);
           const toolResult = await this.agentController.executeToolCall(toolCall);
 
           if (toolResult.success) {
-            // ツール結果をLLMに渡す
             const resultText = JSON.stringify(toolResult.result, null, 2);
             currentPrompt = `Tool ${toolCall.tool} returned:\n\`\`\`json\n${resultText}\n\`\`\`\n\nNow provide a helpful response to the user based on this information.`;
-
-            // 次のターンへ
             continue;
           } else {
-            // ツール実行失敗
             const errorMsg = `Tool execution failed: ${toolResult.error}`;
-            if (onToken) {
-              onToken(`\n\n❌ ${errorMsg}\n`);
-            }
+            if (onToken) onToken(`\n\n❌ ${errorMsg}\n`);
             fullResponse += `\n\n❌ ${errorMsg}\n`;
             break;
           }
         } else {
-          // ツール呼び出しなし = 通常の応答
           fullResponse += turnResponse;
           break;
         }
       }
 
-      this.isGenerating = false;
-      return {
-        response: fullResponse,
-        totalTokens,
-      };
+      return { response: fullResponse, totalTokens, aborted: false };
     } catch (error) {
+      if (this.abortController?.signal.aborted) {
+        console.log('Agent generation aborted by user');
+        return { response: fullResponse, totalTokens, aborted: true };
+      }
       console.error('Agent generation error:', error);
-      this.isGenerating = false;
       throw error;
+    } finally {
+      this.isGenerating = false;
+      this.abortController = null;
     }
   }
 
