@@ -245,6 +245,7 @@ class SettingsPanel {
     }
 
     this.currentSettings = {
+      ...this.currentSettings,  // modelsDirectory など既存フィールドを保持
       systemPrompt,
       temperature,
       maxTokens,
@@ -275,11 +276,12 @@ class SettingsPanel {
     }
 
     this.currentSettings = {
+      ...this.currentSettings,  // modelsDirectory など既存フィールドを保持
       systemPrompt: '',
       temperature: 0.7,
       maxTokens: 2048,
-      hfToken: this.currentSettings.hfToken || '', // トークンは保持
-      theme: this.currentSettings.theme || 'dark', // テーマも保持
+      hfToken: this.currentSettings.hfToken || '',
+      theme: this.currentSettings.theme || 'dark',
     };
 
     this.updateUI();

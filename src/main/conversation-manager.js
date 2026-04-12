@@ -100,6 +100,16 @@ class ConversationManager {
     ).run(now, conversationId);
   }
 
+  deleteLastMessage(conversationId) {
+    this.db.prepare(`
+      DELETE FROM messages WHERE id = (
+        SELECT id FROM messages
+        WHERE conversation_id = ? AND role = 'assistant'
+        ORDER BY timestamp DESC LIMIT 1
+      )
+    `).run(conversationId);
+  }
+
   updateTitle(id, title) {
     this.db.prepare(
       'UPDATE conversations SET title = ?, updated_at = ? WHERE id = ?'

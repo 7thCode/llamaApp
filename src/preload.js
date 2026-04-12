@@ -145,6 +145,12 @@ contextBridge.exposeInMainWorld('llamaAPI', {
   deleteConversation: (id) =>
     ipcRenderer.invoke(IPC_CHANNELS.CONVERSATION_DELETE, { id }),
 
+  renameConversation: (id, title) =>
+    ipcRenderer.invoke(IPC_CHANNELS.CONVERSATION_RENAME, { id, title }),
+
+  deleteLastMessage: (conversationId) =>
+    ipcRenderer.invoke(IPC_CHANNELS.CONVERSATION_DELETE_LAST_MESSAGE, { conversationId }),
+
   // RAG操作
   addUrl: (url) =>
     ipcRenderer.invoke(IPC_CHANNELS.RAG_ADD_URL, { url }),

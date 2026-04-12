@@ -643,6 +643,7 @@ function setupIpcHandlers() {
     try {
       const result = await dialog.showOpenDialog(mainWindow, {
         title: 'モデル保存ディレクトリを選択',
+        defaultPath: modelManager.getModelsDirectory(),
         properties: ['openDirectory', 'createDirectory'],
         message: 'GGUFモデルファイルを保存するディレクトリを選択してください',
       });
@@ -738,6 +739,18 @@ function setupIpcHandlers() {
     if (activeConversationId === id) {
       activeConversationId = null;
     }
+    return { success: true };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CONVERSATION_RENAME, (event, { id, title }) => {
+    if (!conversationManager) throw new Error('ConversationManager not initialized');
+    conversationManager.updateTitle(id, title.trim() || '新しい会話');
+    return { success: true };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CONVERSATION_DELETE_LAST_MESSAGE, (event, { conversationId }) => {
+    if (!conversationManager) throw new Error('ConversationManager not initialized');
+    conversationManager.deleteLastMessage(conversationId);
     return { success: true };
   });
 

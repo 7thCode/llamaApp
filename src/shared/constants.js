@@ -64,6 +64,8 @@ const IPC_CHANNELS = {
   CONVERSATION_LOAD: 'conversation:load',
   CONVERSATION_CREATE: 'conversation:create',
   CONVERSATION_DELETE: 'conversation:delete',
+  CONVERSATION_RENAME: 'conversation:rename',
+  CONVERSATION_DELETE_LAST_MESSAGE: 'conversation:deleteLastMessage',
 
   // RAG管理
   RAG_ADD_URL: 'rag:addUrl',

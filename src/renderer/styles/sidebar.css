@@ -116,3 +116,17 @@
 .sidebar-item.active .sidebar-item-delete {
   color: rgba(255, 255, 255, 0.7);
 }
+
+/* タイトルインライン編集 */
+.sidebar-title-input {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 4px;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}

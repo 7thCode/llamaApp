@@ -32,6 +32,8 @@ npm run rebuild  # node-llama-cppのネイティブモジュールをリビル�
 ```
 
 ### 開発・実行
+
+
 ```bash
 npm start              # アプリケーションを起動
 npm run dev            # デバッグモードで起動（DevToolsが自動で開く）

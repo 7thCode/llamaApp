@@ -10,6 +10,7 @@ class Sidebar {
     this._onDelete = null;
     this._onCreate = null;
     this._element = null;
+    this._editingId = null; // インライン編集中の会話ID
   }
 
   /**
@@ -92,13 +93,80 @@ class Sidebar {
         if (this._onDelete) this._onDelete(conv.id);
       });
 
+      // ダブルクリックでタイトルをインライン編集
+      title.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        this._startEditTitle(conv.id, title, conv.title);
+      });
+
       item.appendChild(title);
       item.appendChild(deleteBtn);
       item.addEventListener('click', () => {
+        if (this._editingId) return; // 編集中はクリックを無視
         if (this._onSelect) this._onSelect(conv.id);
       });
 
       listEl.appendChild(item);
+    });
+  }
+  /**
+   * タイトルのインライン編集を開始
+   * @param {string} id - 会話ID
+   * @param {HTMLElement} titleEl - タイトル span 要素
+   * @param {string} currentTitle - 現在のタイトル
+   */
+  _startEditTitle(id, titleEl, currentTitle) {
+    if (this._editingId) return;
+    this._editingId = id;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'sidebar-title-input';
+    input.value = currentTitle;
+
+    // span を input に置き換え
+    titleEl.replaceWith(input);
+    input.focus();
+    input.select();
+
+    const commit = async () => {
+      const newTitle = input.value.trim() || currentTitle;
+      this._editingId = null;
+
+      // input を span に戻す
+      const newSpan = document.createElement('span');
+      newSpan.className = 'sidebar-item-title';
+      newSpan.textContent = newTitle;
+      newSpan.title = newTitle;
+      input.replaceWith(newSpan);
+
+      // ダブルクリックイベントを再設定
+      newSpan.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        this._startEditTitle(id, newSpan, newTitle);
+      });
+
+      if (newTitle !== currentTitle) {
+        try {
+          await window.llamaAPI.renameConversation(id, newTitle);
+          // ローカルキャッシュも更新
+          const conv = this.conversations.find(c => c.id === id);
+          if (conv) conv.title = newTitle;
+        } catch (error) {
+          console.error('Failed to rename conversation:', error);
+        }
+      }
+    };
+
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        input.blur();
+      } else if (e.key === 'Escape') {
+        input.value = currentTitle;
+        input.blur();
+      }
     });
   }
 }

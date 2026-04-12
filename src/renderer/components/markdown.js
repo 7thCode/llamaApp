@@ -103,18 +103,30 @@ function escapeHtml(text) {
 function renderStreamingMarkdown(text) {
   if (!text) return '';
 
-  // コードフェンスの数を数えて開きっぱなしかどうか判定
-  const fences = text.match(/```/g);
-  const isInsideCodeBlock = fences && fences.length % 2 !== 0;
+  // 行頭から始まる ``` のみをコードフェンスとして追跡（インライン言及は無視）
+  const lines = text.split('\n');
+  let inFence = false;
+  let openFenceLine = -1;
 
-  if (!isInsideCodeBlock) {
+  for (let i = 0; i < lines.length; i++) {
+    if (/^```/.test(lines[i])) {
+      if (!inFence) {
+        inFence = true;
+        openFenceLine = i;
+      } else {
+        inFence = false;
+        openFenceLine = -1;
+      }
+    }
+  }
+
+  if (!inFence) {
     return markdownToHtml(text);
   }
 
-  // 最後の ``` 以前を完結済み部分として取得
-  const lastFenceIndex = text.lastIndexOf('```');
-  const completePart = text.substring(0, lastFenceIndex);
-  const incompletePart = text.substring(lastFenceIndex);
+  // 未完結フェンスの手前までを完結済みとして分割
+  const completePart = lines.slice(0, openFenceLine).join('\n');
+  const incompletePart = lines.slice(openFenceLine).join('\n');
 
   const completedHtml = completePart ? markdownToHtml(completePart) : '';
   const incompleteHtml = `<pre class="streaming-incomplete-code">${escapeHtml(incompletePart)}</pre>`;

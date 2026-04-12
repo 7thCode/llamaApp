@@ -10,7 +10,7 @@ const path = require('path');
 class FileFetcher {
   constructor(options = {}) {
     this.maxFileSize = options.maxFileSize || 10 * 1024 * 1024; // 10MB制限
-    this.supportedExtensions = ['.txt', '.md', '.markdown'];
+    this.supportedExtensions = ['.txt', '.md', '.markdown', '.pdf'];
   }
 
   /**
@@ -89,8 +89,14 @@ class FileFetcher {
    */
   async fetchAndExtract(filePath) {
     try {
-      const content = await this.readFile(filePath);
       const fileType = path.extname(filePath).toLowerCase();
+
+      // PDFは専用パスで処理
+      if (fileType === '.pdf') {
+        return await this._extractPdf(filePath);
+      }
+
+      const content = await this.readFile(filePath);
       const result = this.extractText(content, fileType);
 
       // タイトルがデフォルトの場合、ファイル名を使用
@@ -106,6 +112,44 @@ class FileFetcher {
     } catch (error) {
       throw new Error(`Failed to process file ${filePath}: ${error.message}`);
     }
+  }
+
+  /**
+   * PDFを読み込んでテキスト抽出
+   * @param {string} filePath - PDFファイルパス
+   * @returns {Promise<object>} {title, text, fileName, filePath}
+   */
+  async _extractPdf(filePath) {
+    // ファイルサイズチェック
+    const stats = fs.statSync(filePath);
+    if (stats.size > this.maxFileSize) {
+      throw new Error(`File too large: ${(stats.size / 1024 / 1024).toFixed(2)}MB (max: ${this.maxFileSize / 1024 / 1024}MB)`);
+    }
+
+    const pdfParse = require('pdf-parse');
+    const buffer = fs.readFileSync(filePath);
+    const data = await pdfParse(buffer);
+
+    const rawText = data.text || '';
+
+    // テキストのクリーンアップ
+    const text = rawText
+      .replace(/\r\n/g, '\n')
+      .replace(/\s+$/gm, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
+    // タイトル: PDFメタデータのタイトルを優先、なければファイル名
+    const metaTitle = data.info && data.info.Title ? data.info.Title.trim() : '';
+    const title = metaTitle || this.getFileName(filePath);
+
+    return {
+      title,
+      text,
+      fileName: path.basename(filePath),
+      filePath,
+      pages: data.numpages,
+    };
   }
 
   /**

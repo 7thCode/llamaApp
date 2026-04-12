@@ -28,6 +28,8 @@ let streamingMessage = null;
 let streamingContent = ''; // ストリーミング中のマークダウンコンテンツを蓄積
 let renderPending = false;  // RAFによるレンダリング待機フラグ
 let agentEnabled = false;
+let lastUserMessage = '';           // 再生成用に最後のユーザーメッセージを保持
+let lastAssistantMessageEl = null;  // 再生成ボタンを付ける対象
 let currentSettings = {
   systemPrompt: '',
   temperature: 0.7,
@@ -273,6 +275,8 @@ async function handleSend() {
   if (!message || isGenerating) return;
 
   try {
+    lastUserMessage = message;
+
     // ユーザーメッセージを表示
     addMessage('user', message);
     chatInput.value = '';
@@ -347,6 +351,14 @@ function handleDone(data) {
     textEl.innerHTML = markdownToHtml(streamingContent);
     textEl.classList.remove('streaming');
     addCopyButtons(textEl);
+
+    // 再生成ボタンを前のアシスタントメッセージから除去し、新しいメッセージに追加
+    if (lastAssistantMessageEl && lastAssistantMessageEl !== streamingMessage) {
+      const prev = lastAssistantMessageEl.querySelector('.regenerate-btn');
+      if (prev) prev.remove();
+    }
+    lastAssistantMessageEl = streamingMessage;
+    addRegenerateButton(streamingMessage);
   }
 
   finishGeneration();
@@ -441,6 +453,64 @@ function addMessage(role, content, streaming = false) {
   scrollToBottom();
 
   return messageDiv;
+}
+
+/**
+ * アシスタントメッセージに再生成ボタンを追加
+ * @param {HTMLElement} messageEl - .message.assistant 要素
+ */
+function addRegenerateButton(messageEl) {
+  if (!messageEl) return;
+  // 既存ボタンがあれば除去して付け替え
+  const existing = messageEl.querySelector('.regenerate-btn');
+  if (existing) existing.remove();
+
+  const btn = document.createElement('button');
+  btn.className = 'regenerate-btn';
+  btn.title = '再生成';
+  btn.textContent = '↺';
+  btn.addEventListener('click', () => handleRegenerate(messageEl));
+
+  messageEl.querySelector('.message-content').appendChild(btn);
+}
+
+/**
+ * 再生成ハンドラー
+ * @param {HTMLElement} messageEl - 再生成対象のアシスタントメッセージ要素
+ */
+async function handleRegenerate(messageEl) {
+  if (isGenerating || !lastUserMessage) return;
+
+  // 表示をリセット
+  const textEl = messageEl.querySelector('.message-text');
+  textEl.innerHTML = '';
+  textEl.classList.add('streaming');
+
+  // ストリーミング状態をセット
+  streamingContent = '';
+  streamingMessage = messageEl;
+  isGenerating = true;
+  chatInput.disabled = true;
+  sendBtn.disabled = false;
+  sendBtn.classList.add('stop-mode');
+  sendBtn.querySelector('span').textContent = '⏹ 停止';
+  setStatus('再生成中...');
+
+  try {
+    // DBの最後のアシスタントメッセージを削除
+    if (currentConversationId) {
+      await window.llamaAPI.deleteLastMessage(currentConversationId);
+    }
+
+    const systemPrompt = currentSettings.systemPrompt || null;
+    const temperature = currentSettings.temperature !== undefined ? currentSettings.temperature : 0.7;
+    const maxTokens = currentSettings.maxTokens || 2048;
+    await window.llamaAPI.generate(lastUserMessage, systemPrompt, currentConversationId, temperature, maxTokens);
+  } catch (error) {
+    console.error('Regeneration failed:', error);
+    setStatus('再生成に失敗しました: ' + error.message, 'error');
+    finishGeneration();
+  }
 }
 
 /**
@@ -554,10 +624,22 @@ async function handleConversationSelect(id) {
   // チャットをクリア
   chatMessages.innerHTML = '';
 
+  lastAssistantMessageEl = null;
+  lastUserMessage = '';
+
   try {
     const result = await window.llamaAPI.loadConversation(id);
     if (result && result.messages.length > 0) {
-      result.messages.forEach(msg => addMessage(msg.role, msg.content));
+      result.messages.forEach(msg => {
+        if (msg.role === 'user') lastUserMessage = msg.content;
+        addMessage(msg.role, msg.content);
+      });
+      // 最後のアシスタントメッセージに再生成ボタンを付ける
+      const allAssistant = chatMessages.querySelectorAll('.message.assistant');
+      if (allAssistant.length > 0) {
+        lastAssistantMessageEl = allAssistant[allAssistant.length - 1];
+        addRegenerateButton(lastAssistantMessageEl);
+      }
     }
   } catch (error) {
     console.error('Failed to load conversation:', error);

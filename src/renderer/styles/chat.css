@@ -219,6 +219,30 @@
   color: var(--success);
 }
 
+/* 再生成ボタン */
+.regenerate-btn {
+  display: block;
+  margin-top: 8px;
+  padding: 3px 10px;
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background-color 0.15s, color 0.15s;
+}
+
+.message.assistant:hover .regenerate-btn {
+  opacity: 1;
+}
+
+.regenerate-btn:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
 /* コードブロックのコピーボタン */
 .message-text pre {
   position: relative;
