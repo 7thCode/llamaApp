@@ -39,7 +39,7 @@ class LlamaManager {
     try {
       // 動的インポートでES Moduleを読み込む
       llamaModule = await import('node-llama-cpp');
-      // getLlama()でLlamaインスタンスを取得
+      // getLlama()でLlamaインスタンスを取得（詳細ログ有効）
       this.llama = await llamaModule.getLlama();
       this.initialized = true;
     } catch (error) {
@@ -90,7 +90,11 @@ class LlamaManager {
         modelPath: path.basename(modelPath),
       };
     } catch (error) {
-      console.error('Failed to load model:', error);
+      console.error('=== Model load error ===');
+      console.error('message:', error.message);
+      console.error('name:', error.name);
+      console.error('cause:', error.cause);
+      console.error('stack:', error.stack);
       throw error;
     }
   }
@@ -107,23 +111,29 @@ class LlamaManager {
         this.session = null;
       }
 
-      // モデルをdisposeすると、関連するcontextも自動的にdisposeされる
+      this.contextSequence = null;
+
+      // コンテキストを先に明示的にdispose
+      if (this.context) {
+        try {
+          await this.context.dispose();
+        } catch (e) {
+          console.warn('Context dispose warning:', e.message);
+        }
+        this.context = null;
+      }
+
+      // モデルをdispose
       if (this.model) {
         await this.model.dispose();
         this.model = null;
         console.log('Model disposed');
       }
 
-      // 念のためcontextとcontextSequenceもクリア
-      if (this.context) {
-        this.context = null;
-      }
-
-      if (this.contextSequence) {
-        this.contextSequence = null;
-      }
-
       this.currentModelPath = null;
+
+      // GPUメモリ解放を待つ
+      await new Promise(resolve => setTimeout(resolve, 200));
     } catch (error) {
       console.error('Failed to unload model:', error);
       throw error;
