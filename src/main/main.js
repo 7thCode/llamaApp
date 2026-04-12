@@ -10,6 +10,7 @@ const ModelManager = require('./model-manager');
 const ModelDownloader = require('./model-downloader');
 const RagManager = require('./rag-manager');
 const AgentController = require('./agent/agent-controller');
+const ConversationManager = require('./conversation-manager');
 const { searchHuggingFaceModels } = require('./hf-search');
 const { IPC_CHANNELS, DB_DIR, DEFAULT_SETTINGS } = require('../shared/constants');
 
@@ -22,6 +23,8 @@ let modelManager;
 let modelDownloader;
 let ragManager;
 let agentController;
+let conversationManager;
+let activeConversationId = null;
 
 /**
  * メインウィンドウを作成
@@ -93,6 +96,10 @@ async function initializeApp() {
     llamaManager = new LlamaManager();
     modelManager = new ModelManager(modelsDirectory);
 
+    // ConversationManagerの初期化
+    conversationManager = new ConversationManager();
+    conversationManager.initialize();
+
     // LlamaManagerの初期化（ES Moduleの動的インポート）
     await llamaManager.initialize();
     // ModelManagerの初期化（ディレクトリ作成）
@@ -157,6 +164,17 @@ function setupIpcHandlers() {
         await llamaManager.setSystemPrompt(finalSystemPrompt);
       }
 
+      // ユーザーメッセージをDBに保存
+      if (conversationId && conversationManager) {
+        conversationManager.saveMessage(conversationId, 'user', prompt);
+        // 最初のメッセージから会話タイトルを自動生成
+        const data = conversationManager.loadConversation(conversationId);
+        if (data && data.messages.length === 1) {
+          const autoTitle = prompt.replace(/\n/g, ' ').trim().substring(0, 40);
+          conversationManager.updateTitle(conversationId, autoTitle);
+        }
+      }
+
       // RAG拡張プロンプト生成
       let enhancedPrompt = prompt;
       if (ragManager) {
@@ -182,6 +200,11 @@ function setupIpcHandlers() {
           maxTokens: maxTokens
         }
       );
+
+      // アシスタント応答をDBに保存
+      if (conversationId && conversationManager && result.response) {
+        conversationManager.saveMessage(conversationId, 'assistant', result.response);
+      }
 
       // 生成完了を通知
       event.sender.send(IPC_CHANNELS.LLAMA_DONE, {
@@ -232,6 +255,15 @@ function setupIpcHandlers() {
       } catch (error) {
         // 設定ファイルがない場合はデフォルトのシステムプロンプトを使用
         console.log('No saved settings, using default system prompt');
+      }
+
+      // アクティブな会話の履歴をLLMセッションに復元
+      if (activeConversationId && conversationManager) {
+        const convData = conversationManager.loadConversation(activeConversationId);
+        if (convData && convData.messages.length > 0) {
+          llamaManager.restoreHistory(convData.messages);
+          console.log(`Restored history for conversation: ${activeConversationId}`);
+        }
       }
 
       return result;
@@ -665,6 +697,44 @@ function setupIpcHandlers() {
       throw error;
     }
   });
+  // === 会話管理 ===
+
+  ipcMain.handle(IPC_CHANNELS.CONVERSATION_LIST, () => {
+    if (!conversationManager) return [];
+    return conversationManager.listConversations();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CONVERSATION_CREATE, () => {
+    if (!conversationManager) throw new Error('ConversationManager not initialized');
+    const conv = conversationManager.createConversation();
+    activeConversationId = conv.id;
+    return conv;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CONVERSATION_LOAD, (event, { id }) => {
+    if (!conversationManager) throw new Error('ConversationManager not initialized');
+    const result = conversationManager.loadConversation(id);
+    if (!result) throw new Error('Conversation not found');
+
+    activeConversationId = id;
+
+    // LLMセッションに履歴を復元（モデルがロード済みの場合のみ）
+    if (llamaManager.isModelLoaded()) {
+      llamaManager.restoreHistory(result.messages);
+    }
+
+    return result;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CONVERSATION_DELETE, (event, { id }) => {
+    if (!conversationManager) throw new Error('ConversationManager not initialized');
+    conversationManager.deleteConversation(id);
+    if (activeConversationId === id) {
+      activeConversationId = null;
+    }
+    return { success: true };
+  });
+
   // === HuggingFace 検索 ===
 
   // HFモデル検索
@@ -765,6 +835,10 @@ app.on('before-quit', async (event) => {
       if (ragManager) {
         ragManager.close();
         console.log('RAG Manager closed successfully');
+      }
+      if (conversationManager) {
+        conversationManager.close();
+        console.log('Conversation Manager closed successfully');
       }
     } catch (error) {
       console.error('Error during cleanup:', error);

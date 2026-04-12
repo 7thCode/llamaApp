@@ -23,7 +23,7 @@ const loadingText = document.getElementById('loading-text');
 // 状態管理
 let currentModel = null;
 let isGenerating = false;
-let currentConversationId = 'default';
+let currentConversationId = null;
 let streamingMessage = null;
 let streamingContent = ''; // ストリーミング中のマークダウンコンテンツを蓄積
 let agentEnabled = false;
@@ -50,6 +50,16 @@ async function initialize() {
 
   // Agent状態を読み込み
   await loadAgentStatus();
+
+  // サイドバー初期化（会話一覧）
+  await window.sidebar.initialize({
+    onSelect: handleConversationSelect,
+    onDelete: handleConversationDelete,
+    onCreate: handleNewConversation,
+  });
+
+  // 会話を読み込み（最新or新規作成）
+  await loadInitialConversation();
 
   // モデル一覧をロード
   await loadModels();
@@ -317,6 +327,9 @@ function handleDone(data) {
 
   finishGeneration();
   setStatus(`生成完了 (${data.totalTokens} トークン)`, 'success');
+
+  // サイドバーを更新（タイトル自動生成の反映）
+  window.sidebar.refresh();
 }
 
 /**
@@ -460,6 +473,85 @@ async function loadSettings() {
   
   // テーマを適用
   applyTheme(currentSettings.theme || 'dark');
+}
+
+/**
+ * 起動時の初期会話をセット（最新orを新規作成）
+ */
+async function loadInitialConversation() {
+  try {
+    const conversations = await window.llamaAPI.listConversations();
+    if (conversations.length > 0) {
+      await handleConversationSelect(conversations[0].id);
+    } else {
+      await handleNewConversation();
+    }
+  } catch (error) {
+    console.error('Failed to load initial conversation:', error);
+    // フォールバック: IDなしで動作継続
+    currentConversationId = 'default';
+  }
+}
+
+/**
+ * 会話を選択（履歴をUI + LLMセッションに復元）
+ * @param {string} id
+ */
+async function handleConversationSelect(id) {
+  if (id === currentConversationId) return;
+
+  currentConversationId = id;
+  window.sidebar.setActive(id);
+
+  // チャットをクリア
+  chatMessages.innerHTML = '';
+
+  try {
+    const result = await window.llamaAPI.loadConversation(id);
+    if (result && result.messages.length > 0) {
+      result.messages.forEach(msg => addMessage(msg.role, msg.content));
+    }
+  } catch (error) {
+    console.error('Failed to load conversation:', error);
+  }
+}
+
+/**
+ * 新しい会話を作成
+ */
+async function handleNewConversation() {
+  try {
+    const conv = await window.llamaAPI.createConversation();
+    currentConversationId = conv.id;
+    chatMessages.innerHTML = '';
+    await window.sidebar.refresh();
+    window.sidebar.setActive(conv.id);
+  } catch (error) {
+    console.error('Failed to create conversation:', error);
+  }
+}
+
+/**
+ * 会話を削除
+ * @param {string} id
+ */
+async function handleConversationDelete(id) {
+  const wasActive = id === currentConversationId;
+  try {
+    await window.llamaAPI.deleteConversation(id);
+    await window.sidebar.refresh();
+
+    if (wasActive) {
+      const conversations = await window.llamaAPI.listConversations();
+      if (conversations.length > 0) {
+        await handleConversationSelect(conversations[0].id);
+      } else {
+        await handleNewConversation();
+      }
+    }
+  } catch (error) {
+    console.error('Failed to delete conversation:', error);
+  }
 }
 
 /**

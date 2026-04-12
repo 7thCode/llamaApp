@@ -448,6 +448,29 @@ Remember: ALWAYS use ~ for paths in the home directory!`;
   }
 
   /**
+   * 会話履歴をセッションに復元
+   * @param {Array<{role: string, content: string}>} messages - DBから取得したメッセージ配列
+   */
+  restoreHistory(messages) {
+    if (!this.session || !messages || messages.length === 0) return;
+
+    const chatHistory = messages.map(msg => {
+      if (msg.role === 'user') {
+        return { type: 'user', text: msg.content };
+      } else {
+        return { type: 'model', response: [msg.content] };
+      }
+    });
+
+    try {
+      this.session.setChatHistory(chatHistory);
+      console.log(`Restored chat history: ${chatHistory.length} messages`);
+    } catch (error) {
+      console.warn('setChatHistory failed:', error.message);
+    }
+  }
+
+  /**
    * エージェント有効状態を取得
    */
   isAgentEnabled() {
