@@ -219,6 +219,42 @@
   color: var(--success);
 }
 
+/* コードブロックのコピーボタン */
+.message-text pre {
+  position: relative;
+}
+
+.copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 10px;
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.message-text pre:hover .copy-btn {
+  opacity: 1;
+}
+
+.copy-btn:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.copy-btn.copied {
+  color: var(--success);
+  border-color: var(--success);
+  opacity: 1;
+}
+
 /* ストリーミング中の未完結コードブロック */
 .streaming-incomplete-code {
   display: block;

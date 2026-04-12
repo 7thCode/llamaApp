@@ -346,6 +346,7 @@ function handleDone(data) {
     // 最終クリーンレンダリング（未完結ブロックの補正なしで完全なmarkdownを表示）
     textEl.innerHTML = markdownToHtml(streamingContent);
     textEl.classList.remove('streaming');
+    addCopyButtons(textEl);
   }
 
   finishGeneration();
@@ -368,6 +369,7 @@ function handleError(data) {
     const textEl = streamingMessage.querySelector('.message-text');
     textEl.innerHTML = markdownToHtml(streamingContent);
     textEl.classList.remove('streaming');
+    addCopyButtons(textEl);
   }
 
   setStatus('エラー: ' + data.error, 'error');
@@ -424,6 +426,7 @@ function addMessage(role, content, streaming = false) {
   // AI応答にはマークダウンレンダリングを適用
   if (role === 'assistant' && content) {
     textDiv.innerHTML = markdownToHtml(content);
+    addCopyButtons(textDiv);
   } else {
     textDiv.textContent = content;
   }

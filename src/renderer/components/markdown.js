@@ -122,6 +122,43 @@ function renderStreamingMarkdown(text) {
   return completedHtml + incompleteHtml;
 }
 
+/**
+ * コードブロックにコピーボタンを追加
+ * 最終レンダリング後に呼び出す（ストリーミング中は不要）
+ * @param {HTMLElement} container - .message-text 要素
+ */
+function addCopyButtons(container) {
+  const preBlocks = container.querySelectorAll('pre');
+  preBlocks.forEach(pre => {
+    // 既にボタンがある場合はスキップ（重複防止）
+    if (pre.querySelector('.copy-btn')) return;
+
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'コピー';
+    btn.addEventListener('click', async () => {
+      const codeEl = pre.querySelector('code');
+      const text = codeEl ? codeEl.textContent : pre.textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = '✓ コピー済み';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = 'コピー';
+          btn.classList.remove('copied');
+        }, 2000);
+      } catch (err) {
+        console.error('Failed to copy:', err);
+        btn.textContent = 'コピー失敗';
+        setTimeout(() => { btn.textContent = 'コピー'; }, 2000);
+      }
+    });
+
+    pre.appendChild(btn);
+  });
+}
+
 // グローバルスコープに公開
 window.markdownToHtml = markdownToHtml;
 window.renderStreamingMarkdown = renderStreamingMarkdown;
+window.addCopyButtons = addCopyButtons;
