@@ -378,63 +378,56 @@ Remember: ALWAYS use ~ for paths in the home directory!`;
 
   /**
    * レスポンスからツール呼び出しJSONを検出
+   * コードフェンス（```json）と生のJSONオブジェクトの両方に対応。
+   * ブレース計数でネスト構造を正しく解析する。
    * @param {string} text - LLMのレスポンステキスト
-   * @returns {Object|null} - { tool: string, arguments: Object } または null
+   * @returns {{ tool: string, arguments: Object }|null}
    */
   _detectToolCall(text) {
-    console.log('_detectToolCall called with text length:', text.length);
-    console.log('Text content:', text.substring(0, 200));
+    // マークダウンのコードフェンスを除去してフラットなテキストにする
+    const cleaned = text.replace(/```json\s*/g, '').replace(/```/g, '');
 
-    // JSONコードブロック内のツール呼び出しを検出
-    const jsonMatch = text.match(/```json\s*(\{[\s\S]*?\})\s*```/);
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    let start = -1;
 
-    if (jsonMatch) {
-      console.log('Found JSON code block');
-      try {
-        const json = JSON.parse(jsonMatch[1]);
-        if (json.tool && json.arguments) {
-          console.log('Tool call detected from code block:', json);
-          return {
-            tool: json.tool,
-            arguments: json.arguments
-          };
+    for (let i = 0; i < cleaned.length; i++) {
+      const char = cleaned[i];
+
+      if (escape) {
+        escape = false;
+        continue;
+      }
+
+      if (inString) {
+        if (char === '\\') escape = true;
+        else if (char === '"') inString = false;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = true;
+      } else if (char === '{') {
+        if (depth === 0) start = i;
+        depth++;
+      } else if (char === '}') {
+        if (depth > 0) depth--;
+        if (depth === 0 && start !== -1) {
+          // トップレベルの } に到達 → 候補JSONとしてパース試行
+          try {
+            const json = JSON.parse(cleaned.substring(start, i + 1));
+            if (json.tool && json.arguments !== undefined) {
+              return { tool: json.tool, arguments: json.arguments };
+            }
+          } catch {
+            // パース失敗 → 次の { から再スキャン
+          }
+          start = -1;
         }
-      } catch (error) {
-        console.error('Failed to parse tool call JSON:', error);
       }
     }
 
-    // 直接のJSONオブジェクト検出（コードブロックなし）
-    try {
-      const lines = text.split('\n');
-      console.log('Checking direct JSON, line count:', lines.length);
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (line.startsWith('{') && line.includes('"tool"')) {
-          console.log('Found potential tool call JSON at line', i);
-          // 複数行にまたがる可能性があるので、続きを読む
-          let jsonText = line;
-          for (let j = i + 1; j < lines.length && !jsonText.includes('}'); j++) {
-            jsonText += '\n' + lines[j];
-          }
-
-          console.log('Attempting to parse:', jsonText);
-          const json = JSON.parse(jsonText);
-          if (json.tool && json.arguments) {
-            console.log('Tool call detected from direct JSON:', json);
-            return {
-              tool: json.tool,
-              arguments: json.arguments
-            };
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Direct JSON parse error:', error);
-    }
-
-    console.log('No tool call detected');
     return null;
   }
 

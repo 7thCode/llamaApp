@@ -3,7 +3,7 @@
  * システム管理・データ処理特化
  */
 
-const { readFile, readdir, stat } = require('fs').promises;
+const { readFile, readdir, stat, writeFile, appendFile, mkdir, unlink, rename } = require('fs').promises;
 const path = require('path');
 const os = require('os');
 const { exec} = require('child_process');
@@ -99,6 +99,51 @@ class AgentController {
           path: { type: 'string', description: 'CSV file path (e.g., ~/Downloads/data.csv). Use ~ for home directory.' }
         },
         handler: this._analyzeCsv.bind(this)
+      },
+
+      // === 書き込みツール ===
+      write_file: {
+        description: 'Write text content to a file (creates or overwrites)',
+        parameters: {
+          path: { type: 'string', description: 'File path to write (e.g., ~/Documents/note.txt). Use ~ for home directory.' },
+          content: { type: 'string', description: 'Text content to write' },
+          encoding: { type: 'string', optional: true, description: 'File encoding (default: utf8)' }
+        },
+        handler: this._writeFile.bind(this)
+      },
+
+      append_to_file: {
+        description: 'Append text content to an existing file (creates if not exists)',
+        parameters: {
+          path: { type: 'string', description: 'File path to append to (e.g., ~/Documents/log.txt). Use ~ for home directory.' },
+          content: { type: 'string', description: 'Text content to append' }
+        },
+        handler: this._appendToFile.bind(this)
+      },
+
+      create_directory: {
+        description: 'Create a new directory (including intermediate directories)',
+        parameters: {
+          path: { type: 'string', description: 'Directory path to create (e.g., ~/Documents/new-folder). Use ~ for home directory.' }
+        },
+        handler: this._createDirectory.bind(this)
+      },
+
+      delete_file: {
+        description: 'Delete a file (does NOT delete directories)',
+        parameters: {
+          path: { type: 'string', description: 'File path to delete (e.g., ~/Documents/old.txt). Use ~ for home directory.' }
+        },
+        handler: this._deleteFile.bind(this)
+      },
+
+      rename_file: {
+        description: 'Rename or move a file or directory',
+        parameters: {
+          source: { type: 'string', description: 'Current file or directory path. Use ~ for home directory.' },
+          destination: { type: 'string', description: 'New file or directory path. Use ~ for home directory.' }
+        },
+        handler: this._renameFile.bind(this)
       },
 
       // === コード実行ツール ===
@@ -543,6 +588,96 @@ class AgentController {
       columnCount: headers.length,
       sample: rows.slice(0, 5),
       preview: rows
+    };
+  }
+
+  // ==================== 書き込みツール ====================
+
+  /**
+   * ファイル書き込み（新規作成・上書き）
+   */
+  async _writeFile(args) {
+    const filePath = this._resolvePath(args.path);
+    const encoding = args.encoding || 'utf8';
+    const content = args.content;
+
+    await writeFile(filePath, content, encoding);
+
+    const stats = await stat(filePath);
+    return {
+      path: filePath,
+      size: stats.size,
+      sizeFormatted: this._formatFileSize(stats.size),
+      created: !stats.birthtimeMs || stats.birthtimeMs === stats.mtimeMs,
+      message: `File written successfully`
+    };
+  }
+
+  /**
+   * ファイル追記
+   */
+  async _appendToFile(args) {
+    const filePath = this._resolvePath(args.path);
+    const content = args.content;
+
+    await appendFile(filePath, content, 'utf8');
+
+    const stats = await stat(filePath);
+    return {
+      path: filePath,
+      size: stats.size,
+      sizeFormatted: this._formatFileSize(stats.size),
+      message: `Content appended successfully`
+    };
+  }
+
+  /**
+   * ディレクトリ作成
+   */
+  async _createDirectory(args) {
+    const dirPath = this._resolvePath(args.path);
+
+    await mkdir(dirPath, { recursive: true });
+
+    return {
+      path: dirPath,
+      message: `Directory created successfully`
+    };
+  }
+
+  /**
+   * ファイル削除（ファイルのみ、ディレクトリ不可）
+   */
+  async _deleteFile(args) {
+    const filePath = this._resolvePath(args.path);
+
+    // ディレクトリ削除を防ぐ
+    const stats = await stat(filePath);
+    if (stats.isDirectory()) {
+      throw new Error(`Cannot delete directory with delete_file. Path is a directory: ${filePath}`);
+    }
+
+    await unlink(filePath);
+
+    return {
+      path: filePath,
+      message: `File deleted successfully`
+    };
+  }
+
+  /**
+   * ファイル・ディレクトリのリネーム/移動
+   */
+  async _renameFile(args) {
+    const sourcePath = this._resolvePath(args.source);
+    const destPath = this._resolvePath(args.destination);
+
+    await rename(sourcePath, destPath);
+
+    return {
+      source: sourcePath,
+      destination: destPath,
+      message: `Renamed/moved successfully`
     };
   }
 

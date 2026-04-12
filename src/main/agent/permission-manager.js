@@ -79,12 +79,9 @@ class PermissionManager {
         return this._validateReadAccess(args.path || args.directory);
       }
 
-      // 書き込み操作（Phase 2で実装）
+      // 書き込み操作
       if (this._isWriteOperation(tool)) {
-        return {
-          allowed: false,
-          reason: 'Write operations not implemented in Phase 1'
-        };
+        return this._validateWriteAccess(tool, args);
       }
 
       // システム操作（プロセス一覧等）
@@ -245,6 +242,84 @@ class PermissionManager {
       'execute_code',
     ];
     return execOps.includes(tool);
+  }
+
+  /**
+   * 書き込みアクセスの検証
+   * @param {string} tool - ツール名
+   * @param {Object} args - ツール引数
+   */
+  _validateWriteAccess(tool, args) {
+    // rename_file は source と destination の両方を検証
+    if (tool === 'rename_file') {
+      const srcCheck = this._validateWritePath(args.source);
+      if (!srcCheck.allowed) return srcCheck;
+      return this._validateWritePath(args.destination);
+    }
+
+    const inputPath = args.path;
+    return this._validateWritePath(inputPath);
+  }
+
+  /**
+   * 書き込みパスの検証（単一パス）
+   * @param {string} inputPath
+   */
+  _validateWritePath(inputPath) {
+    if (!inputPath) {
+      return { allowed: false, reason: 'No path specified' };
+    }
+
+    const resolvedPath = this._resolvePath(inputPath);
+
+    // ブロックリストチェック（優先）
+    for (const blocked of this.config.blockedDirectories) {
+      if (resolvedPath.startsWith(blocked)) {
+        return {
+          allowed: false,
+          reason: `Write access to ${blocked} is blocked for security`,
+        };
+      }
+    }
+
+    // ホワイトリストチェック
+    const inWhitelist = this.config.allowedDirectories.some(allowed =>
+      resolvedPath.startsWith(allowed)
+    );
+
+    if (!inWhitelist) {
+      const allowedDirs = this.config.allowedDirectories
+        .map(d => d.replace(os.homedir(), '~'))
+        .join(', ');
+      return {
+        allowed: false,
+        reason: `Write access denied. Only these directories are allowed: ${allowedDirs}`,
+      };
+    }
+
+    // センシティブファイルチェック
+    const fileName = path.basename(resolvedPath);
+    const isSensitive = this.config.sensitiveFilePatterns.some(pattern =>
+      pattern.test(fileName)
+    );
+
+    if (isSensitive) {
+      return {
+        allowed: false,
+        reason: `Cannot write to ${fileName}: file appears to contain sensitive data`,
+      };
+    }
+
+    // ブロックされた拡張子チェック
+    const ext = path.extname(resolvedPath).toLowerCase();
+    if (this.config.blockedExtensions.includes(ext)) {
+      return {
+        allowed: false,
+        reason: `Cannot write file type ${ext} for security`,
+      };
+    }
+
+    return { allowed: true };
   }
 
   /**

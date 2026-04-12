@@ -351,6 +351,11 @@ LLMがmacOSのファイルシステム・システム情報・コードを操作
 | `analyze_json` | データ処理 | JSONファイル構造解析（最大20MB） |
 | `analyze_csv` | データ処理 | CSVファイル解析（最大20MB、先頭100行） |
 | `execute_code` | コード実行 | Python/Bash実行（タイムアウト最大60秒） |
+| `write_file` | 書き込み | テキストファイル新規作成・上書き |
+| `append_to_file` | 書き込み | ファイルへの追記（存在しない場合は作成） |
+| `create_directory` | 書き込み | ディレクトリ作成（中間ディレクトリも自動作成） |
+| `delete_file` | 書き込み | ファイル削除（ディレクトリ削除不可） |
+| `rename_file` | 書き込み | ファイル・ディレクトリのリネーム/移動 |
 
 ### セキュリティ（PermissionManager）
 

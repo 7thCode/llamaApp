@@ -93,5 +93,35 @@ function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-// グローバルスコープに公開（window.markdownToHtml として利用可能）
+/**
+ * ストリーミング中のマークダウンを安全にレンダリング
+ * 未完結のコードフェンスを検出し、完結済み部分のみmarkdownで描画。
+ * 未完結部分はプレーンテキストとして表示する。
+ * @param {string} text - 蓄積中のマークダウンテキスト
+ * @returns {string} - HTML
+ */
+function renderStreamingMarkdown(text) {
+  if (!text) return '';
+
+  // コードフェンスの数を数えて開きっぱなしかどうか判定
+  const fences = text.match(/```/g);
+  const isInsideCodeBlock = fences && fences.length % 2 !== 0;
+
+  if (!isInsideCodeBlock) {
+    return markdownToHtml(text);
+  }
+
+  // 最後の ``` 以前を完結済み部分として取得
+  const lastFenceIndex = text.lastIndexOf('```');
+  const completePart = text.substring(0, lastFenceIndex);
+  const incompletePart = text.substring(lastFenceIndex);
+
+  const completedHtml = completePart ? markdownToHtml(completePart) : '';
+  const incompleteHtml = `<pre class="streaming-incomplete-code">${escapeHtml(incompletePart)}</pre>`;
+
+  return completedHtml + incompleteHtml;
+}
+
+// グローバルスコープに公開
 window.markdownToHtml = markdownToHtml;
+window.renderStreamingMarkdown = renderStreamingMarkdown;

@@ -26,6 +26,7 @@ let isGenerating = false;
 let currentConversationId = null;
 let streamingMessage = null;
 let streamingContent = ''; // ストリーミング中のマークダウンコンテンツを蓄積
+let renderPending = false;  // RAFによるレンダリング待機フラグ
 let agentEnabled = false;
 let currentSettings = {
   systemPrompt: '',
@@ -305,19 +306,31 @@ async function handleSend() {
 
 /**
  * トークン受信ハンドラー
+ * RAFでスロットルしてDOMスラッシングを防ぐ
  */
 function handleToken(data) {
   if (data.conversationId !== currentConversationId) return;
+  if (!streamingMessage) return;
 
-  if (streamingMessage) {
-    // トークンを蓄積
-    streamingContent += data.token;
+  streamingContent += data.token;
 
-    // マークダウンレンダリングして再描画
-    const textEl = streamingMessage.querySelector('.message-text');
-    textEl.innerHTML = markdownToHtml(streamingContent);
-    scrollToBottom();
+  // まだ描画待ちでなければ次のアニメーションフレームで描画をスケジュール
+  if (!renderPending) {
+    renderPending = true;
+    requestAnimationFrame(renderStreamingContent);
   }
+}
+
+/**
+ * ストリーミング中の差分レンダリング（RAF経由で呼び出し）
+ */
+function renderStreamingContent() {
+  renderPending = false;
+  if (!streamingMessage) return;
+
+  const textEl = streamingMessage.querySelector('.message-text');
+  textEl.innerHTML = renderStreamingMarkdown(streamingContent);
+  scrollToBottom();
 }
 
 /**
@@ -330,6 +343,8 @@ function handleDone(data) {
 
   if (streamingMessage) {
     const textEl = streamingMessage.querySelector('.message-text');
+    // 最終クリーンレンダリング（未完結ブロックの補正なしで完全なmarkdownを表示）
+    textEl.innerHTML = markdownToHtml(streamingContent);
     textEl.classList.remove('streaming');
   }
 
@@ -347,6 +362,14 @@ function handleError(data) {
   if (data.conversationId !== currentConversationId) return;
 
   console.error('Generation error:', data.error);
+
+  // エラー時も最終クリーンレンダリング（streaming クラスと未完結ブロックを除去）
+  if (streamingMessage) {
+    const textEl = streamingMessage.querySelector('.message-text');
+    textEl.innerHTML = markdownToHtml(streamingContent);
+    textEl.classList.remove('streaming');
+  }
+
   setStatus('エラー: ' + data.error, 'error');
   finishGeneration();
 }
@@ -367,6 +390,7 @@ async function handleStop() {
  */
 function finishGeneration() {
   isGenerating = false;
+  renderPending = false;
   chatInput.disabled = false;
   sendBtn.disabled = false;
   sendBtn.classList.remove('stop-mode');
