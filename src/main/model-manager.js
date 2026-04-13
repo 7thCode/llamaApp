@@ -7,6 +7,15 @@ const fs = require('fs').promises;
 const path = require('path');
 const { MODELS_DIR } = require('../shared/constants');
 
+// Vision モデルを示すファイル名パターン
+const VISION_NAME_PATTERNS = [
+  /llava/i, /moondream/i, /minicpm[\-_]?v/i, /qwen[\-_]?vl/i,
+  /internvl/i, /phi[\-_]?v\b/i, /vision/i, /multimodal/i,
+  /cogvlm/i, /idefics/i, /bakllava/i,
+];
+// mmproj（画像エンコーダ）ファイルを示すパターン
+const MMPROJ_NAME_PATTERNS = [/mmproj/i, /\bclip\b/i];
+
 class ModelManager {
   constructor(customModelsDir = null) {
     this.modelsDir = customModelsDir || MODELS_DIR;
@@ -51,19 +60,25 @@ class ModelManager {
       const models = [];
 
       for (const file of files) {
-        if (file.endsWith('.gguf')) {
-          const filePath = path.join(this.modelsDir, file);
-          const stats = await fs.stat(filePath);
+        if (!file.endsWith('.gguf')) continue;
 
-          models.push({
-            id: file,
-            name: file.replace('.gguf', ''),
-            path: filePath,
-            size: stats.size,
-            sizeFormatted: this.formatBytes(stats.size),
-            createdAt: stats.birthtime,
-          });
-        }
+        const filePath = path.join(this.modelsDir, file);
+        const stats = await fs.stat(filePath);
+        const vision = await this.detectVisionCapability(filePath);
+
+        // mmproj ファイル自体はモデル一覧に表示しない
+        if (vision.isMmproj) continue;
+
+        models.push({
+          id: file,
+          name: file.replace('.gguf', ''),
+          path: filePath,
+          size: stats.size,
+          sizeFormatted: this.formatBytes(stats.size),
+          createdAt: stats.birthtime,
+          isVision: vision.isVision,
+          mmprojPath: vision.mmprojPath,
+        });
       }
 
       // 名前順でソート
@@ -73,6 +88,75 @@ class ModelManager {
     } catch (error) {
       console.error('Failed to list models:', error);
       return [];
+    }
+  }
+
+  /**
+   * モデルファイルが Vision 対応かどうか検出
+   * @param {string} modelPath
+   * @returns {{ isVision: boolean, isMmproj: boolean, mmprojPath: string|null }}
+   */
+  async detectVisionCapability(modelPath) {
+    const basename = path.basename(modelPath, '.gguf');
+
+    // mmproj ファイル自体か判定（名前ベース）
+    if (MMPROJ_NAME_PATTERNS.some((p) => p.test(basename))) {
+      return { isVision: false, isMmproj: true, mmprojPath: null };
+    }
+
+    // GGUF メタデータで architecture を確認
+    try {
+      const { readGgufFileInfo } = await import('node-llama-cpp');
+      const info = await readGgufFileInfo(modelPath, { readTensorInfo: false });
+      const arch = info?.metadata?.general?.architecture;
+      if (arch === 'clip') {
+        return { isVision: false, isMmproj: true, mmprojPath: null };
+      }
+    } catch {
+      // メタデータ読み取り失敗は無視して名前ベースで判定
+    }
+
+    // ファイル名パターンで Vision モデルか判定
+    const nameIndicatesVision = VISION_NAME_PATTERNS.some((p) => p.test(basename));
+
+    // 同ディレクトリに mmproj ファイルがあるか確認
+    const mmprojPath = await this.findMmprojForModel(modelPath);
+
+    return {
+      isVision: nameIndicatesVision || mmprojPath !== null,
+      isMmproj: false,
+      mmprojPath,
+    };
+  }
+
+  /**
+   * モデルに対応する mmproj ファイルを探す
+   * @param {string} modelPath
+   * @returns {string|null} mmproj ファイルパス
+   */
+  async findMmprojForModel(modelPath) {
+    const dir = path.dirname(modelPath);
+    const basename = path.basename(modelPath, '.gguf').toLowerCase();
+
+    try {
+      const files = await fs.readdir(dir);
+      const mmprojFiles = files.filter(
+        (f) => f.endsWith('.gguf') && MMPROJ_NAME_PATTERNS.some((p) => p.test(f))
+      );
+
+      if (mmprojFiles.length === 0) return null;
+      if (mmprojFiles.length === 1) return path.join(dir, mmprojFiles[0]);
+
+      // 複数ある場合はベース名が近いものを優先
+      const modelBase = basename.replace(/[-_]q\d.*$/i, '');
+      const matched = mmprojFiles.find((f) => {
+        const n = f.toLowerCase().replace('.gguf', '').replace(/[-_]mmproj.*$/, '');
+        return n === modelBase || n.includes(modelBase) || modelBase.includes(n);
+      });
+
+      return path.join(dir, matched || mmprojFiles[0]);
+    } catch {
+      return null;
     }
   }
 

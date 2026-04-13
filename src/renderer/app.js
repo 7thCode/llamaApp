@@ -8,6 +8,7 @@
 
 // UI要素の取得
 const modelSelect = document.getElementById('model-select');
+const visionBadge = document.getElementById('vision-badge');
 const addModelBtn = document.getElementById('add-model-btn');
 const modelStoreBtn = document.getElementById('model-store-btn');
 const settingsBtn = document.getElementById('settings-btn');
@@ -183,7 +184,8 @@ async function loadModels() {
       models.forEach((model) => {
         const option = document.createElement('option');
         option.value = model.path;
-        option.textContent = `${model.name} (${model.sizeFormatted})`;
+        option.textContent = `${model.isVision ? '👁️ ' : ''}${model.name} (${model.sizeFormatted})`;
+        option.dataset.isVision = model.isVision ? '1' : '0';
         modelSelect.appendChild(option);
       });
 
@@ -193,6 +195,7 @@ async function loadModels() {
         enableChat();
         setStatus(`モデル読み込み済み: ${current.name}`, 'success');
         hideWelcomeMessage();
+        updateVisionBadge();
       } else {
         modelSelect.disabled = false;
         chatInput.disabled = true;
@@ -227,6 +230,7 @@ async function handleModelChange() {
       enableChat();
       setStatus(`モデル読み込み完了: ${result.modelPath}`, 'success');
       hideWelcomeMessage();
+      updateVisionBadge();
     }
 
     hideLoading();
@@ -237,6 +241,15 @@ async function handleModelChange() {
     modelSelect.disabled = false;
     setStatus('モデルの読み込みに失敗しました: ' + error.message, 'error');
   }
+}
+
+/**
+ * 選択中モデルの Vision バッジを更新
+ */
+function updateVisionBadge() {
+  const selected = modelSelect.options[modelSelect.selectedIndex];
+  const isVision = selected?.dataset?.isVision === '1';
+  visionBadge.style.display = isVision ? 'inline-flex' : 'none';
 }
 
 /**
