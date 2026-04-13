@@ -4,9 +4,24 @@
  */
 
 const path = require('path');
+const fsSync = require('fs');
+const os = require('os');
 
 // node-llama-cppのES Module対応
 let llamaModule = null;
+
+// ログファイルパス（app.getPath使用不可のためos.homedirで代替）
+const LOG_PATH = path.join(
+  os.homedir(), 'Library', 'Application Support', 'AlpaChat', 'model-load.log'
+);
+function log(msg) {
+  const line = `[${new Date().toISOString()}] [llama-manager] ${msg}\n`;
+  try {
+    fsSync.mkdirSync(path.dirname(LOG_PATH), { recursive: true });
+    fsSync.appendFileSync(LOG_PATH, line);
+  } catch (_) {}
+  console.log(`[llama-manager] ${msg}`);
+}
 
 class LlamaManager {
   constructor() {
@@ -37,13 +52,14 @@ class LlamaManager {
     if (this.initialized) return;
 
     try {
-      // 動的インポートでES Moduleを読み込む
+      log('initialize: importing node-llama-cpp...');
       llamaModule = await import('node-llama-cpp');
-      // getLlama()でLlamaインスタンスを取得（詳細ログ有効）
+      log('initialize: calling getLlama()...');
       this.llama = await llamaModule.getLlama();
       this.initialized = true;
+      log('initialize: done');
     } catch (error) {
-      console.error('Failed to initialize LlamaManager:', error);
+      log(`initialize FAILED: ${error.message}\n${error.stack}`);
       throw error;
     }
   }
@@ -53,50 +69,95 @@ class LlamaManager {
    * @param {string} modelPath - GGUFモデルファイルのパス
    */
   async loadModel(modelPath) {
-    try {
-      // 初期化チェック
-      if (!this.initialized) {
-        await this.initialize();
-      }
-
-      // 既存のモデルをアンロード
-      if (this.model) {
-        await this.unloadModel();
-      }
-
-      // モデルをロード (新API)
-      this.model = await this.llama.loadModel({
-        modelPath: modelPath,
-      });
-
-      // コンテキスト作成 (新API)
-      this.context = await this.model.createContext({
-        contextSize: 4096,
-      });
-
-      // コンテキストシーケンスを取得して保存
-      this.contextSequence = this.context.getSequence();
-
-      // セッション作成 (新API: contextSequence使用)
-      this.session = new llamaModule.LlamaChatSession({
-        contextSequence: this.contextSequence,
-        systemPrompt: this.currentSystemPrompt,
-      });
-
-      this.currentModelPath = modelPath;
-
-      return {
-        success: true,
-        modelPath: path.basename(modelPath),
-      };
-    } catch (error) {
-      console.error('=== Model load error ===');
-      console.error('message:', error.message);
-      console.error('name:', error.name);
-      console.error('cause:', error.cause);
-      console.error('stack:', error.stack);
-      throw error;
+    // 初期化チェック
+    if (!this.initialized) {
+      await this.initialize();
     }
+
+    // 既存のモデルをアンロード
+    if (this.model) {
+      await this.unloadModel();
+    }
+
+    // Step 1: モデルロード（GPU失敗時: llama再初期化→CPUフォールバックの順でリトライ）
+    const step1Strategies = [
+      { label: 'GPU (default)',          loadOptions: {},                                  reinitLlama: false },
+      { label: 'GPU (re-init)',          loadOptions: {},                                  reinitLlama: true  },
+      { label: 'CPU (mmap)',             loadOptions: { gpuLayers: 0 },                   reinitLlama: false },
+      { label: 'CPU (no-mmap)',          loadOptions: { gpuLayers: 0, useMmap: false },   reinitLlama: false },
+    ];
+
+    let step1Error = null;
+    for (const strategy of step1Strategies) {
+      if (strategy.reinitLlama) {
+        log('Step 1: reinitializing llama instance...');
+        try { await this.llama.dispose(); } catch (_) {}
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        this.llama = await llamaModule.getLlama();
+      }
+
+      log(`Step 1: loading model file [${strategy.label}]...`);
+      try {
+        this.model = await this.llama.loadModel({ modelPath, ...strategy.loadOptions });
+        step1Error = null;
+        log(`Step 1: done [${strategy.label}]`);
+        break;
+      } catch (error) {
+        log(`Step 1 FAILED [${strategy.label}]: ${error.message}`);
+        step1Error = error;
+        if (this.model) {
+          try { await this.model.dispose(); } catch (_) {}
+          this.model = null;
+        }
+      }
+    }
+
+    if (step1Error) {
+      log(`Step 1 FAILED all strategies: ${step1Error.message}\n${step1Error.stack}`);
+      throw step1Error;
+    }
+
+    // Step 2: コンテキスト作成（メモリ不足時はサイズを落としてリトライ）
+    const contextSizes = [4096, 2048, 1024];
+    let contextCreated = false;
+    for (const size of contextSizes) {
+      log(`Step 2: creating context (contextSize=${size})...`);
+      try {
+        this.context = await this.model.createContext({ contextSize: size });
+        log(`Step 2: done (contextSize=${size})`);
+        contextCreated = true;
+        break;
+      } catch (error) {
+        log(`Step 2 FAILED at contextSize=${size}: ${error.message}`);
+        if (this.context) {
+          try { await this.context.dispose(); } catch (_) {}
+          this.context = null;
+        }
+      }
+    }
+
+    if (!contextCreated) {
+      await this.model.dispose();
+      this.model = null;
+      const err = new Error('Failed to create context at any context size');
+      log(`Step 2 FAILED all sizes: ${err.message}`);
+      throw err;
+    }
+
+    // Step 3: セッション作成
+    log('Step 3: creating session...');
+    this.contextSequence = this.context.getSequence();
+    this.session = new llamaModule.LlamaChatSession({
+      contextSequence: this.contextSequence,
+      systemPrompt: this.currentSystemPrompt,
+    });
+    log('Step 3: done');
+
+    this.currentModelPath = modelPath;
+    return {
+      success: true,
+      modelPath: path.basename(modelPath),
+    };
   }
 
   /**

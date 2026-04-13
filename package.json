@@ -6,8 +6,8 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --inspect",
-    "rebuild": "electron-rebuild -f -w node-llama-cpp",
-    "clean": "rm -rf dist",
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "clean": "rm -rf dist && rm -rf node_modules/node-llama-cpp/llama/localBuilds",
     "prebuild": "npm run rebuild",
     "build": "electron-builder",
     "build:mac": "electron-builder --mac",
@@ -84,7 +84,7 @@
         }
       ],
       "minimumSystemVersion": "13.0.0",
-      "hardenedRuntime": true,
+      "hardenedRuntime": false,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",

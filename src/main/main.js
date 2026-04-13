@@ -5,6 +5,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const LlamaManager = require('./llama-manager');
 const ModelManager = require('./model-manager');
 const ModelDownloader = require('./model-downloader');
@@ -99,6 +100,11 @@ async function initializeApp() {
     // ConversationManagerの初期化
     conversationManager = new ConversationManager();
     conversationManager.initialize();
+
+    // ログディレクトリを事前に作成（llama-manager のログが確実に書き込まれるよう）
+    try {
+      await fs.mkdir(path.join(app.getPath('userData')), { recursive: true });
+    } catch (_) {}
 
     // LlamaManagerの初期化（ES Moduleの動的インポート）
     await llamaManager.initialize();
@@ -246,8 +252,17 @@ function setupIpcHandlers() {
 
   // モデル切り替え
   ipcMain.handle(IPC_CHANNELS.MODEL_SWITCH, async (event, { modelPath }) => {
+    const logPath = path.join(app.getPath('userData'), 'model-load.log');
+    const logLine = (msg) => {
+      const line = `[${new Date().toISOString()}] ${msg}\n`;
+      fsSync.appendFileSync(logPath, line);
+      console.log(msg);
+    };
+
     try {
+      logLine(`Loading model: ${path.basename(modelPath)}`);
       const result = await llamaManager.loadModel(modelPath);
+      logLine(`Model loaded successfully: ${path.basename(modelPath)}`);
 
       // モデルロード後、保存された設定からシステムプロンプトを適用
       try {
@@ -274,7 +289,9 @@ function setupIpcHandlers() {
 
       return result;
     } catch (error) {
-      console.error('Failed to switch model:', error);
+      logLine(`ERROR loading model: ${path.basename(modelPath)}`);
+      logLine(`  message: ${error.message}`);
+      logLine(`  stack: ${error.stack}`);
       throw error;
     }
   });
