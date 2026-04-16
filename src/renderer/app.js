@@ -20,6 +20,8 @@ const sendBtn = document.getElementById('send-btn');
 const inputStatus = document.getElementById('input-status');
 const loadingOverlay = document.getElementById('loading-overlay');
 const loadingText = document.getElementById('loading-text');
+const attachImageBtn = document.getElementById('attach-image-btn');
+const imagePreviewArea = document.getElementById('image-preview-area');
 
 // 状態管理
 let currentModel = null;
@@ -31,6 +33,8 @@ let renderPending = false;  // RAFによるレンダリング待機フラグ
 let agentEnabled = false;
 let lastUserMessage = '';           // 再生成用に最後のユーザーメッセージを保持
 let lastAssistantMessageEl = null;  // 再生成ボタンを付ける対象
+let attachedImages = [];            // Vision: 添付画像 [{dataUrl, base64, name}]
+let visionServerRunning = false;    // llama-server 起動状態
 let currentSettings = {
   systemPrompt: '',
   temperature: 0.7,
@@ -112,10 +116,21 @@ function setupEventListeners() {
   window.llamaAPI.onDone(handleDone);
   window.llamaAPI.onError(handleError);
 
+  // Vision IPCイベントリスナー
+  window.llamaAPI.onVisionToken(handleToken);
+  window.llamaAPI.onVisionDone(handleDone);
+  window.llamaAPI.onVisionError(handleError);
+
   // Agent IPCイベントリスナー
   window.llamaAPI.onToolStart(handleToolStart);
   window.llamaAPI.onToolComplete(handleToolComplete);
   window.llamaAPI.onToolError(handleToolError);
+
+  // 画像添付ボタン
+  attachImageBtn.addEventListener('click', handleAttachImage);
+
+  // クリップボードからの画像貼り付け（Cmd+V）
+  chatInput.addEventListener('paste', handleImagePaste);
 
   // テーマ切り替えボタン
   const themeBtn = document.getElementById('theme-toggle-btn');
@@ -186,6 +201,7 @@ async function loadModels() {
         option.value = model.path;
         option.textContent = `${model.isVision ? '👁️ ' : ''}${model.name} (${model.sizeFormatted})`;
         option.dataset.isVision = model.isVision ? '1' : '0';
+        option.dataset.mmprojPath = model.mmprojPath || '';
         modelSelect.appendChild(option);
       });
 
@@ -244,12 +260,26 @@ async function handleModelChange() {
 }
 
 /**
- * 選択中モデルの Vision バッジを更新
+ * 選択中モデルの Vision バッジを更新し、サーバーライフサイクルを管理
  */
-function updateVisionBadge() {
+async function updateVisionBadge() {
   const selected = modelSelect.options[modelSelect.selectedIndex];
   const isVision = selected?.dataset?.isVision === '1';
   visionBadge.style.display = isVision ? 'inline-flex' : 'none';
+  attachImageBtn.style.display = isVision ? 'inline-flex' : 'none';
+
+  if (!isVision) {
+    // Vision以外のモデルに切り替えたら画像をクリアしてサーバー停止
+    clearAttachedImages();
+    if (visionServerRunning) {
+      try {
+        await window.llamaAPI.visionStopServer();
+      } catch (e) {
+        console.warn('Failed to stop vision server:', e);
+      }
+      visionServerRunning = false;
+    }
+  }
 }
 
 /**
@@ -285,15 +315,23 @@ async function handleAddModel() {
  */
 async function handleSend() {
   const message = chatInput.value.trim();
-  if (!message || isGenerating) return;
+  const hasImages = attachedImages.length > 0;
+  if ((!message && !hasImages) || isGenerating) return;
+
+  const selected = modelSelect.options[modelSelect.selectedIndex];
+  const isVision = selected?.dataset?.isVision === '1';
 
   try {
     lastUserMessage = message;
 
-    // ユーザーメッセージを表示
-    addMessage('user', message);
+    // ユーザーメッセージ（+画像プレビュー）を表示
+    addUserMessageWithImages(message, attachedImages);
     chatInput.value = '';
     autoResizeTextarea();
+
+    // 添付画像のbase64データを退避してからクリア
+    const imagesToSend = attachedImages.map(img => img.base64);
+    clearAttachedImages();
 
     // UI状態更新（送信ボタンを停止ボタンに切り替え）
     isGenerating = true;
@@ -309,16 +347,175 @@ async function handleSend() {
     // アシスタントメッセージを準備
     streamingMessage = addMessage('assistant', '', true);
 
-    // 生成開始（設定からシステムプロンプトを取得）
+    // 生成開始
     const systemPrompt = currentSettings.systemPrompt || null;
     const temperature = currentSettings.temperature !== undefined ? currentSettings.temperature : 0.7;
     const maxTokens = currentSettings.maxTokens || 2048;
-    await window.llamaAPI.generate(message, systemPrompt, currentConversationId, temperature, maxTokens);
+
+    if (isVision && imagesToSend.length > 0) {
+      // Vision生成: llama-serverが未起動なら起動
+      if (!visionServerRunning) {
+        const modelPath = modelSelect.value;
+        const mmprojPath = selected?.dataset?.mmprojPath || '';
+        if (!mmprojPath) {
+          // mmproj ファイルが見つからない場合はエラーを表示して中断
+          if (streamingMessage) streamingMessage.remove();
+          streamingMessage = null;
+          streamingContent = '';
+          finishGeneration();
+          setStatus('mmproj ファイルが見つかりません。Vision モデルと同じフォルダに mmproj.gguf を配置してください。', 'error');
+          return;
+        }
+        setStatus('Vision サーバーを起動中...');
+        await window.llamaAPI.visionStartServer(modelPath, mmprojPath);
+        visionServerRunning = true;
+      }
+      await window.llamaAPI.visionGenerate(message, imagesToSend, systemPrompt, currentConversationId);
+    } else {
+      await window.llamaAPI.generate(message, systemPrompt, currentConversationId, temperature, maxTokens);
+    }
   } catch (error) {
     console.error('Generation failed:', error);
     setStatus('生成に失敗しました: ' + error.message, 'error');
     finishGeneration();
   }
+}
+
+/**
+ * Vision: 画像添付ハンドラー（ファイルピッカー）
+ */
+function handleAttachImage() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.multiple = true;
+  input.addEventListener('change', () => {
+    Array.from(input.files).forEach(file => addImageFromFile(file));
+  });
+  input.click();
+}
+
+/**
+ * Vision: クリップボード貼り付けで画像を追加
+ */
+function handleImagePaste(e) {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+
+  const selected = modelSelect.options[modelSelect.selectedIndex];
+  const isVision = selected?.dataset?.isVision === '1';
+  if (!isVision) return;
+
+  Array.from(items).forEach(item => {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault();
+      addImageFromFile(item.getAsFile());
+    }
+  });
+}
+
+/**
+ * Vision: Fileオブジェクトをbase64変換して添付リストに追加
+ */
+function addImageFromFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const dataUrl = e.target.result;
+    // data:image/...;base64,<data> から base64部分だけ取り出す
+    const base64 = dataUrl.split(',')[1];
+    const img = { dataUrl, base64, name: file.name };
+    attachedImages.push(img);
+    renderImagePreviews();
+  };
+  reader.readAsDataURL(file);
+}
+
+/**
+ * Vision: プレビューエリアを再描画
+ */
+function renderImagePreviews() {
+  imagePreviewArea.innerHTML = '';
+  if (attachedImages.length === 0) {
+    imagePreviewArea.style.display = 'none';
+    return;
+  }
+  imagePreviewArea.style.display = 'flex';
+  attachedImages.forEach((img, idx) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'image-preview-item';
+
+    const imgEl = document.createElement('img');
+    imgEl.src = img.dataUrl;
+    imgEl.alt = img.name;
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'image-preview-remove';
+    removeBtn.textContent = '×';
+    removeBtn.title = '画像を削除';
+    removeBtn.addEventListener('click', () => {
+      attachedImages.splice(idx, 1);
+      renderImagePreviews();
+    });
+
+    wrapper.appendChild(imgEl);
+    wrapper.appendChild(removeBtn);
+    imagePreviewArea.appendChild(wrapper);
+  });
+}
+
+/**
+ * Vision: 添付画像をすべてクリア
+ */
+function clearAttachedImages() {
+  attachedImages = [];
+  renderImagePreviews();
+}
+
+/**
+ * ユーザーメッセージを画像付きで追加
+ */
+function addUserMessageWithImages(text, images) {
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'message user';
+
+  const avatar = document.createElement('div');
+  avatar.className = 'message-avatar';
+  avatar.textContent = '👤';
+
+  const contentDiv = document.createElement('div');
+  contentDiv.className = 'message-content';
+
+  const roleDiv = document.createElement('div');
+  roleDiv.className = 'message-role';
+  roleDiv.textContent = 'あなた';
+
+  // 画像サムネイル
+  if (images.length > 0) {
+    const imgRow = document.createElement('div');
+    imgRow.className = 'message-images';
+    images.forEach(img => {
+      const imgEl = document.createElement('img');
+      imgEl.src = img.dataUrl;
+      imgEl.alt = img.name;
+      imgEl.className = 'message-image-thumb';
+      imgRow.appendChild(imgEl);
+    });
+    contentDiv.appendChild(roleDiv);
+    contentDiv.appendChild(imgRow);
+  } else {
+    contentDiv.appendChild(roleDiv);
+  }
+
+  const textDiv = document.createElement('div');
+  textDiv.className = 'message-text';
+  textDiv.textContent = text;
+  contentDiv.appendChild(textDiv);
+
+  messageDiv.appendChild(avatar);
+  messageDiv.appendChild(contentDiv);
+  chatMessages.appendChild(messageDiv);
+  scrollToBottom();
 }
 
 /**

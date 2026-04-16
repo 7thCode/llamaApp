@@ -131,30 +131,55 @@ class ModelManager {
 
   /**
    * モデルに対応する mmproj ファイルを探す
+   * 1) ファイル名パターン（mmproj / clip）でマッチ
+   * 2) ヒットしない場合は全 .gguf を GGUF メタデータで確認（architecture === 'clip'）
    * @param {string} modelPath
    * @returns {string|null} mmproj ファイルパス
    */
   async findMmprojForModel(modelPath) {
     const dir = path.dirname(modelPath);
     const basename = path.basename(modelPath, '.gguf').toLowerCase();
+    const self = path.basename(modelPath);
 
     try {
       const files = await fs.readdir(dir);
-      const mmprojFiles = files.filter(
-        (f) => f.endsWith('.gguf') && MMPROJ_NAME_PATTERNS.some((p) => p.test(f))
+      const ggufFiles = files.filter((f) => f.endsWith('.gguf') && f !== self);
+
+      // --- Step 1: 名前パターンで候補を絞る ---
+      let candidates = ggufFiles.filter(
+        (f) => MMPROJ_NAME_PATTERNS.some((p) => p.test(f))
       );
 
-      if (mmprojFiles.length === 0) return null;
-      if (mmprojFiles.length === 1) return path.join(dir, mmprojFiles[0]);
+      // --- Step 2: 名前で見つからなければメタデータで clip を探す ---
+      if (candidates.length === 0) {
+        try {
+          const { readGgufFileInfo } = await import('node-llama-cpp');
+          for (const f of ggufFiles) {
+            try {
+              const info = await readGgufFileInfo(path.join(dir, f), { readTensorInfo: false });
+              if (info?.metadata?.general?.architecture === 'clip') {
+                candidates.push(f);
+              }
+            } catch {
+              // 読み取れないファイルはスキップ
+            }
+          }
+        } catch {
+          // node-llama-cpp のインポート失敗はスキップ
+        }
+      }
+
+      if (candidates.length === 0) return null;
+      if (candidates.length === 1) return path.join(dir, candidates[0]);
 
       // 複数ある場合はベース名が近いものを優先
       const modelBase = basename.replace(/[-_]q\d.*$/i, '');
-      const matched = mmprojFiles.find((f) => {
+      const matched = candidates.find((f) => {
         const n = f.toLowerCase().replace('.gguf', '').replace(/[-_]mmproj.*$/, '');
         return n === modelBase || n.includes(modelBase) || modelBase.includes(n);
       });
 
-      return path.join(dir, matched || mmprojFiles[0]);
+      return path.join(dir, matched || candidates[0]);
     } catch {
       return null;
     }

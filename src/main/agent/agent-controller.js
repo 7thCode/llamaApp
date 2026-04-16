@@ -146,6 +146,16 @@ class AgentController {
         handler: this._renameFile.bind(this)
       },
 
+      // === Web検索ツール ===
+      web_search: {
+        description: 'Search the web for current information using DuckDuckGo. Use this when you need up-to-date facts, news, documentation, or any information that may have changed after your training cutoff.',
+        parameters: {
+          query: { type: 'string', description: 'Search query' },
+          limit: { type: 'number', optional: true, description: 'Max results to return (default 5, max 10)' }
+        },
+        handler: this._webSearch.bind(this)
+      },
+
       // === コード実行ツール ===
       execute_code: {
         description: 'Execute Python or Bash code with safety restrictions (30s timeout)',
@@ -678,6 +688,90 @@ class AgentController {
       source: sourcePath,
       destination: destPath,
       message: `Renamed/moved successfully`
+    };
+  }
+
+  // ==================== Web検索ツール ====================
+
+  /**
+   * Web検索（DuckDuckGo HTML）
+   */
+  async _webSearch(args) {
+    const { query, limit = 5 } = args;
+    const maxLimit = Math.min(limit, 10);
+
+    const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=jp-jp`;
+
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'ja,en;q=0.9',
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Search request failed: ${response.status}`);
+    }
+
+    const html = await response.text();
+
+    // DuckDuckGo HTML から検索結果を抽出
+    const results = [];
+
+    // 結果ブロック: <div class="result results_links ...">
+    const resultBlockRe = /<div[^>]+class="[^"]*result[^"]*results_links[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>/g;
+    const titleRe = /<a[^>]+class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/;
+    const snippetRe = /<a[^>]+class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/;
+
+    let match;
+    while ((match = resultBlockRe.exec(html)) !== null && results.length < maxLimit) {
+      const block = match[1];
+
+      const titleMatch = titleRe.exec(block);
+      const snippetMatch = snippetRe.exec(block);
+
+      if (!titleMatch) continue;
+
+      // DDG リダイレクト URL をデコード
+      let resultUrl = titleMatch[1];
+      try {
+        const uddgParam = new URL('https://x.com' + resultUrl).searchParams.get('uddg');
+        if (uddgParam) resultUrl = decodeURIComponent(uddgParam);
+      } catch {
+        // URL パースに失敗した場合はそのまま使用
+      }
+
+      const title = titleMatch[2].replace(/<[^>]+>/g, '').trim();
+      const snippet = snippetMatch
+        ? snippetMatch[1].replace(/<[^>]+>/g, '').trim()
+        : '';
+
+      if (title && resultUrl) {
+        results.push({ title, url: resultUrl, snippet });
+      }
+    }
+
+    // 正規表現でヒットしない場合のフォールバック（シンプルパターン）
+    if (results.length === 0) {
+      const fallbackTitleRe = /class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)<\/a>/g;
+      let fb;
+      while ((fb = fallbackTitleRe.exec(html)) !== null && results.length < maxLimit) {
+        let resultUrl = fb[1];
+        try {
+          const uddgParam = new URL('https://x.com' + resultUrl).searchParams.get('uddg');
+          if (uddgParam) resultUrl = decodeURIComponent(uddgParam);
+        } catch { /* ignore */ }
+        const title = fb[2].replace(/<[^>]+>/g, '').trim();
+        if (title && resultUrl) results.push({ title, url: resultUrl, snippet: '' });
+      }
+    }
+
+    return {
+      query,
+      count: results.length,
+      results,
     };
   }
 

@@ -219,6 +219,25 @@ contextBridge.exposeInMainWorld('llamaAPI', {
 
   hfDownloadModel: (hfModel) =>
     ipcRenderer.invoke(IPC_CHANNELS.HF_DOWNLOAD_MODEL, { hfModel }),
+
+  // Vision操作
+  visionStartServer: (modelPath, mmprojPath) =>
+    ipcRenderer.invoke('vision:startServer', { modelPath, mmprojPath }),
+
+  visionStopServer: () =>
+    ipcRenderer.invoke('vision:stopServer'),
+
+  visionGenerate: (prompt, imageBase64, systemPrompt, conversationId) =>
+    ipcRenderer.invoke('vision:generate', { prompt, imageBase64, systemPrompt, conversationId }),
+
+  onVisionToken: (callback) =>
+    ipcRenderer.on('vision:token', (event, data) => callback(data)),
+
+  onVisionDone: (callback) =>
+    ipcRenderer.on('vision:done', (event, data) => callback(data)),
+
+  onVisionError: (callback) =>
+    ipcRenderer.on('vision:error', (event, data) => callback(data)),
 });
 
 // 設定API

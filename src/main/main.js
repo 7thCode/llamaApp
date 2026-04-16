@@ -8,6 +8,7 @@ const fs = require('fs').promises;
 const fsSync = require('fs');
 const LlamaManager = require('./llama-manager');
 const ModelManager = require('./model-manager');
+const LlamaServerManager = require('./llama-server-manager');
 const ModelDownloader = require('./model-downloader');
 const RagManager = require('./rag-manager');
 const AgentController = require('./agent/agent-controller');
@@ -22,6 +23,7 @@ let mainWindow;
 let llamaManager;
 let modelManager;
 let modelDownloader;
+let llamaServerManager;
 let ragManager;
 let agentController;
 let conversationManager;
@@ -96,6 +98,7 @@ async function initializeApp() {
     // LlamaManager、ModelManagerの初期化
     llamaManager = new LlamaManager();
     modelManager = new ModelManager(modelsDirectory);
+    llamaServerManager = new LlamaServerManager();
 
     // ConversationManagerの初期化
     conversationManager = new ConversationManager();
@@ -155,6 +158,58 @@ function setupIpcHandlers() {
   ipcMain.handle(IPC_CHANNELS.LLAMA_STOP, () => {
     llamaManager.stopGeneration();
     return { success: true };
+  });
+
+  // Vision サーバー起動
+  ipcMain.handle(IPC_CHANNELS.VISION_START_SERVER, async (event, { modelPath, mmprojPath }) => {
+    try {
+      await llamaServerManager.start(modelPath, mmprojPath);
+      return { success: true, port: llamaServerManager.port };
+    } catch (error) {
+      console.error('Failed to start vision server:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Vision サーバー停止
+  ipcMain.handle(IPC_CHANNELS.VISION_STOP_SERVER, async () => {
+    await llamaServerManager.stop();
+    return { success: true };
+  });
+
+  // Vision テキスト生成（画像付き）
+  ipcMain.handle(IPC_CHANNELS.VISION_GENERATE, async (event, { prompt, imageBase64, systemPrompt, conversationId }) => {
+    try {
+      if (!llamaServerManager.isRunning) {
+        throw new Error('Vision サーバーが起動していません');
+      }
+
+      const abortController = new AbortController();
+      // 中断シグナル登録
+      const stopHandler = () => abortController.abort();
+      ipcMain.once(IPC_CHANNELS.LLAMA_STOP, stopHandler);
+
+      let totalTokens = 0;
+      await llamaServerManager.generateWithImages({
+        prompt,
+        imageBase64: imageBase64 || [],
+        systemPrompt,
+        signal: abortController.signal,
+        onToken: (token) => {
+          totalTokens++;
+          event.sender.send(IPC_CHANNELS.VISION_TOKEN, { token, conversationId });
+        },
+      });
+
+      ipcMain.removeListener(IPC_CHANNELS.LLAMA_STOP, stopHandler);
+      event.sender.send(IPC_CHANNELS.VISION_DONE, { totalTokens, conversationId });
+      return { success: true };
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        event.sender.send(IPC_CHANNELS.VISION_ERROR, { error: error.message, conversationId });
+      }
+      return { success: false, error: error.message };
+    }
   });
 
   // LLMテキスト生成
@@ -864,6 +919,10 @@ app.on('before-quit', async (event) => {
     console.log('Cleaning up before quit...');
 
     try {
+      if (llamaServerManager) {
+        await llamaServerManager.stop();
+        console.log('llama-server stopped');
+      }
       if (llamaManager) {
         await llamaManager.unloadModel();
         console.log('Model unloaded successfully');

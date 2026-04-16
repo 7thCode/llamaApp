@@ -230,6 +230,11 @@ class PermissionManager {
     const systemOps = [
       'list_processes',
       'get_system_info',
+      'web_search',
+      'get_disk_usage',
+      'analyze_logs',
+      'analyze_json',
+      'analyze_csv',
     ];
     return systemOps.includes(tool);
   }

@@ -1,8 +1,36 @@
 {
   "version": "0.2.0",
   "configurations": [
-    
-    
+    {
+      "name": "🚀 Start App (npm run dev)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "name": "▶️ Start App (npm start)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["start"],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "name": "📦 Build & Package Mac App",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "package:mac"],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    },
     {
       "name": "Electron: Main",
       "type": "node",

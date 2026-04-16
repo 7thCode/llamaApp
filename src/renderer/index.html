@@ -51,7 +51,10 @@
 
         <!-- 入力エリア -->
         <div class="chat-input-container">
+          <!-- 画像プレビューエリア（Vision時のみ表示） -->
+          <div id="image-preview-area" class="image-preview-area" style="display:none"></div>
           <div class="chat-input-wrapper">
+            <button id="attach-image-btn" class="attach-image-btn" style="display:none" title="画像を添付 (Vision対応モデル)">📎</button>
             <textarea
               id="chat-input"
               class="chat-input"

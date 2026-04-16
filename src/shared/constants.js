@@ -40,6 +40,14 @@ const IPC_CHANNELS = {
   LLAMA_DONE: 'llama:done',
   LLAMA_ERROR: 'llama:error',
 
+  // Vision操作
+  VISION_START_SERVER: 'vision:startServer',
+  VISION_STOP_SERVER: 'vision:stopServer',
+  VISION_GENERATE: 'vision:generate',
+  VISION_TOKEN: 'vision:token',
+  VISION_DONE: 'vision:done',
+  VISION_ERROR: 'vision:error',
+
   // モデル管理
   MODEL_LIST: 'model:list',
   MODEL_SWITCH: 'model:switch',

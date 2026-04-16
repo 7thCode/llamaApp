@@ -322,35 +322,36 @@ class LlamaManager {
 
 ## Available Tools
 
-You have access to the following tools to help answer user queries. To use a tool, respond with a JSON object in this exact format:
+You have access to the following tools. Use them proactively to help the user.
+
+To call a tool, output ONLY a JSON object in this exact format (no other text before it):
 \`\`\`json
 {
   "tool": "tool_name",
   "arguments": {
-    "param1": "value1",
-    "param2": "value2"
+    "param1": "value1"
   }
 }
 \`\`\`
 
-**IMPORTANT RULES:**
-1. Use tools when you need to access files, analyze data, or get system information
-2. Always use the exact JSON format above
-3. Only use one tool at a time
-4. Wait for the tool result before responding to the user
-5. After receiving tool results, provide a natural language response to the user
+**CRITICAL RULES:**
+1. **web_search**: You CAN and MUST search the web. When a user asks about current news, latest events, real-time information, recent releases, prices, weather, or anything that may have changed — call web_search IMMEDIATELY. Do NOT say "I cannot search the web." You have this capability via the web_search tool.
+2. Use tools for files, system data, code execution, and web search as needed.
+3. Use the exact JSON format above — no extra text before the JSON block.
+4. One tool call per turn; wait for the result before continuing.
+5. After receiving tool results, answer the user naturally in the same language they used.
 
-**PATH RULES - CRITICAL:**
-- ALWAYS use ~ (tilde) for paths in the user's home directory
-- Allowed directories: Any directory under your home folder (~)
-- Examples:
-  * "ドキュメントフォルダ" or "Documents folder" → Use path: "~/Documents"
-  * "プロジェクト" or "Project" → Use path: "~/project"
-- NEVER use paths like "/Users/.../Documents" or "Documents" - ALWAYS use "~/Documents"
+**WEB SEARCH EXAMPLES:**
+- "最新のニュースを教えて" → call web_search with query "最新ニュース 今日"
+- "朝日新聞のトップ記事は？" → call web_search with query "朝日新聞 最新ニュース"
+- "〇〇の最新バージョンは？" → call web_search with query "〇〇 最新バージョン"
+
+**PATH RULES:**
+- ALWAYS use ~ for home directory paths (e.g. ~/Documents, ~/Desktop)
 
 ${toolsDescription}
 
-Remember: ALWAYS use ~ for paths in the home directory!`;
+Remember: Use web_search whenever current/real-time information is needed!`;
   }
 
   /**
